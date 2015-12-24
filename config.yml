@@ -1,0 +1,75 @@
+# This is the main configuration file of your Dancer2 app
+# env-related settings should go to environments/$env.yml
+# all the settings in this file will be loaded at Dancer's startup.
+
+# Your application's name
+appname: "StuffTracker"
+program_title: "Stuff Tracker"
+
+###
+## Database Info
+###
+
+## Database to use in program 
+#
+# Supported databases
+#
+# - Use "Pg" for PostgreSQL databases
+# - Use "mysql" for MySQL/MariaDB databases
+# - Use "SQLite" for SQLite databases
+
+dbi_to_use: "SQLite"
+
+## Database Name/File
+#
+# For PostgreSQL or MySQL/MariaDB databases, state database
+# For SQLite, state filename
+
+db: "sqlite.db"
+
+## Database Username/Password
+#
+# Used in PostgreSQL and MySQL/MariaDB.
+
+db_username: "stuff_tracker"
+db_password: "stuff_tracker"
+
+## Database host
+
+db_host: "127.0.0.1"
+
+## Database port
+#
+# - "5432" is default for PostgreSQL
+# - "3306" is default for MySQL/MariaDB
+
+db_port: "5432"
+
+# The default layout to use for your application (located in
+# views/layouts/main.tt)
+layout: "main"
+
+# when the charset is set to UTF-8 Dancer2 will handle for you
+# all the magic of encoding and decoding. You should not care
+# about unicode within your app when this setting is set (recommended).
+charset: "UTF-8"
+
+# template engine
+# simple: default and very basic template engine
+# template_toolkit: TT
+
+template: "simple"
+
+# template: "template_toolkit"
+# engines:
+#   template:
+#     template_toolkit:
+#       start_tag: '<%'
+#       end_tag:   '%>'
+
+session: "YAML"
+
+engines:
+  session:
+    YAML:
+      session_dir: "/tmp/dancer-sessions"

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="<% settings.charset %>">
+        <title><% settings.program_title %></title>
+        <link rel="stylesheet" href="<%static_uri%>javascripts/dojo/resources/dojo.css">
+        <link rel="stylesheet" href="<%static_uri%>javascripts/dijit/themes/claro/claro.css">
+        <link rel="stylesheet" href="<%static_uri%>javascripts/gridx/resources/claro/Gridx.css">
+        <link rel="stylesheet" href="<%static_uri%>css/stuff_tracker.css">
+    </head>
+    <body class="claro">
+        <% content %>
+    </body>
+</html>

@@ -1,0 +1,28 @@
+        <!-- JavaScript -->
+        
+        <script>
+                var dojoConfig = {
+                        async: true,
+                        baseUrl: '<%static_uri%>javascripts/',
+                        isDebug: false,
+                        parseOnLoad: false,
+                        packages: [
+                                // Using a string as a package is shorthand for `{ name: 'arc', location: 'arc' }`
+                                'arc',
+                                'dijit',
+                                'dojo',
+                                'dojox',
+                                'gridx'
+                        ],
+                        tlmSiblingOfDojo: false
+                };
+        </script>
+
+        <script src='<%static_uri%>javascripts/dojo/dojo.js'></script>
+        <script>require([ 'arc/main' ]);</script>
+        <form>
+            <input type="hidden" name="static_uri" id="static_uri" value="<%static_uri%>"></input>
+            <input type="hidden" name="main_uri" id="main_uri" value="<%main_uri%>"></input>
+            <input type="hidden" name="session_user" id="session_user" value="<%session_user%>"></input>
+            <input type="hidden" name="program_title" id="program_title" value="<% settings.program_title %>"></input>
+        </form>

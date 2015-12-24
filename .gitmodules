@@ -1,0 +1,12 @@
+[submodule "public/javascripts/dijit"]
+	path = public/javascripts/dijit
+	url = https://github.com/dojo/dijit.git
+[submodule "public/javascripts/dojo"]
+	path = public/javascripts/dojo
+	url = https://github.com/dojo/dojo.git
+[submodule "public/javascripts/dojox"]
+	path = public/javascripts/dojox
+	url = https://github.com/dojo/dojox.git
+[submodule "public/javascripts/gridx"]
+	path = public/javascripts/gridx
+	url = https://github.com/oria/gridx.git

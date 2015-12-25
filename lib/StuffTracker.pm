@@ -9,7 +9,6 @@ our $VERSION = '0.1';
 
 use DBI;
 use Carp;
-use Data::Dumper;
 
 ###
 ## Database Variables
@@ -1233,8 +1232,6 @@ sub column_admin {
                             }
                         }
 
-                        carp(Dumper $column_string);
-
                         $sql->{9} = qq(create temporary table stuff_tracker_b as select $column_string from stuff_tracker);
                         $sth->{9} = $dbh->prepare($sql->{9}) or carp("Error in sth_9");
                         $sth->{9}->execute() or carp("Error in sth_9 execute");
@@ -1278,8 +1275,6 @@ sub column_admin {
                         }
 
                         $sql->{main} .=  " ) ";
-
-                        carp(Dumper $sql->{main});
 
                         $sth->{main} = $dbh->prepare($sql->{main}) or carp("Error in sth_main");
                         $sth->{main}->execute() or carp("Error in sth_main execute");

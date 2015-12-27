@@ -8,5 +8,5 @@ Instalation instructions for Debian:
 2. git clone --recursive https://github.com/zidmar/StuffTracker.git
 3. cd StuffTracker
 4. sqlite3 sqlite.db < sql/stuff_tracker-sqlite.sql
-5. plackup -r -R lib bin/app.psgi
+5. plackup bin/app.psgi
 6. Connect with web browser to http://localhost:5000

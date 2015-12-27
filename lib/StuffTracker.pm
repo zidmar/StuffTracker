@@ -142,11 +142,10 @@ post '/edit_column' => sub {
 
 ## Selects ####################################################################
 
-get '/filtering_select/*/:rid?' => sub {
+get '/filtering_select/:input/:rid?' => sub {
 
-    my ($input) = splat;
-
-    my $name = params->{'name'} || undef;
+    my $input = param 'input';
+    my $name  = params->{'name'} || undef;
 
     if($name){
         my $output = &filtering_select({ input => $input, name => $name });

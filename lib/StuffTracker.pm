@@ -1,7 +1,7 @@
 package StuffTracker;
 use Dancer2;
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 ###
 ## Modules
@@ -9,6 +9,7 @@ our $VERSION = '0.1';
 
 use DBI;
 use Carp;
+use Data::Dumper;
 
 ###
 ## Database Variables
@@ -1132,19 +1133,21 @@ sub column_admin {
 
             if($sub_hash->{description} =~ /^\w+$/){
 
+                my $new_column = lc($sub_hash->{description});
+
                 $sql->{3} = qq(insert into db_column (description,db_column_type_to_db_column_id) values (?,?));
                 $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                $sth->{3}->execute($sub_hash->{description},$sub_hash->{type}) or carp("Error in sth_3 execute");
+                $sth->{3}->execute($new_column,$sub_hash->{type}) or carp("Error in sth_3 execute");
                 $sth->{3}->finish;
 
                 if($sql_1_result->{type} eq "varchar"){
-                    $sql->{4} = qq(alter table stuff_tracker add column $sub_hash->{description} varchar(100) null);
+                    $sql->{4} = qq(alter table stuff_tracker add column $new_column varchar(100) null);
                     $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
                     $sth->{4}->execute() or carp("Error in sth_4 execute");
                     $sth->{4}->finish;
                 }
                 if($sql_1_result->{type} eq "date"){
-                    $sql->{4} = qq(alter table stuff_tracker add column $sub_hash->{description} timestamp null);
+                    $sql->{4} = qq(alter table stuff_tracker add column $new_column timestamp null);
                     $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
                     $sth->{4}->execute() or carp("Error in sth_4 execute");
                     $sth->{4}->finish;
@@ -1154,10 +1157,10 @@ sub column_admin {
 
                     if(config->{"dbi_to_use"} eq "SQLite"){
 
-                        my $table_name        = $sub_hash->{description};
+                        my $table_name        = lc($sub_hash->{description});
                         my $table_name_id     = $table_name . "_id";
                         my $table_name_status = "status_to_" . $table_name_id;
-                        my $column_name       = $sub_hash->{description} . "_to_stuff_tracker_id";
+                        my $column_name       = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
                         my $primary_key       = &_primary_key_to_use();
 
                         my %statement_hash = ( 
@@ -1286,12 +1289,12 @@ sub column_admin {
                     }
                     else{
 
-                        my $table_name        = $sub_hash->{description};
+                        my $table_name        = lc($sub_hash->{description});
                         my $table_name_id     = $table_name . "_id";
                         my $table_name_status = "status_to_" . $table_name_id;
 
-                        my $column_name       = $sub_hash->{description} . "_to_stuff_tracker_id";
-                        my $constraint_name   = "stuff_tracker_" . $sub_hash->{description} . "_to_stuff_tracker_id_fkey";
+                        my $column_name       = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
+                        my $constraint_name   = "stuff_tracker_" . lc($sub_hash->{description}) . "_to_stuff_tracker_id_fkey";
 
                         my $primary_key       = &_primary_key_to_use();
 
@@ -1329,7 +1332,7 @@ sub column_admin {
                         a.column_order,
                         a.status_to_db_column_id as status,
                         a.db_column_type_to_db_column_id as type_id,
-                        b.description as type
+                        b.name as type
                        from 
                         db_column a,
                         db_column_type b
@@ -1343,6 +1346,10 @@ sub column_admin {
         $sth->{1}->finish;
 
         if($sql_1_result->{description}){
+
+            my $new_column = lc($sub_hash->{description});
+
+            ## Order
             if($sql_1_result->{column_order} ne $sub_hash->{order}){
                 $sql->{2} = qq(update db_column set column_order = ? where db_column_id = ?);
                 $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
@@ -1350,6 +1357,8 @@ sub column_admin {
                 $sth->{2}->finish;
                 $sub_output = "Edited column from \"$sql_1_result->{column_order}\" to \"$sub_hash->{order}\" successfully!";
             }
+
+            ## Size
             if($sql_1_result->{column_size} ne $sub_hash->{size}){
                 $sql->{2} = qq(update db_column set column_size = ? where db_column_id = ?);
                 $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
@@ -1357,56 +1366,230 @@ sub column_admin {
                 $sth->{2}->finish;
                 $sub_output = "Edited column from \"$sql_1_result->{column_size}\" to \"$sub_hash->{size}\" successfully!";
             }
+
+            ## Status
             if($sql_1_result->{status} ne $status){
                 $sql->{2} = qq(update db_column set status_to_db_column_id = ? where db_column_id = ?);
                 $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
                 $sth->{2}->execute($status,$sub_hash->{id}) or carp("Error in sth_2 execute");
                 $sth->{2}->finish;
             }
-            if($sql_1_result->{description} ne $sub_hash->{description}){
+
+            ## Name
+            if($sql_1_result->{description} ne $new_column){
 
                 $sql->{2} = qq(update db_column set description = ? where db_column_id = ?);
                 $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2}->execute($sub_hash->{description},$sub_hash->{id}) or carp("Error in sth_2 execute");
+                $sth->{2}->execute($new_column,$sub_hash->{id}) or carp("Error in sth_2 execute");
                 $sth->{2}->finish;
 
                 if($sql_1_result->{type} ne "select"){
-                    $sql->{3} = qq(ALTER TABLE stuff_tracker RENAME COLUMN $sql_1_result->{description} TO $sub_hash->{description});
-                    $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                    $sth->{3}->execute() or carp("Error in sth_3 execute");
-                    $sth->{3}->finish;
+
+                    if(config->{"dbi_to_use"} eq "SQLite"){
+                        $dbh->do("BEGIN") or carp("Error in SQLite RENAME COLUMN 1");
+                        $dbh->do("PRAGMA writable_schema=1") or carp("Error in SQLite RENAME COLUMN 2");
+                        my $update_sql = "UPDATE sqlite_master SET SQL=REPLACE(SQL,'" . $sql_1_result->{description} . "','" . $new_column . "') WHERE name='stuff_tracker'";
+                        $dbh->do($update_sql) or carp("Error in SQLite RENAME COLUMN 3");
+                        $dbh->do("PRAGMA writable_schema=0") or carp("Error in SQLite RENAME COLUMN 4");
+                        $dbh->do("COMMIT") or carp("Error in SQLite RENAME COLUMN 5");
+                    }
+                    else{
+                        $sql->{3} = qq(ALTER TABLE stuff_tracker RENAME COLUMN $sql_1_result->{description} TO $new_column);
+                        $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
+                        $sth->{3}->execute() or carp("Error in sth_3 execute");
+                        $sth->{3}->finish;
+                    }
                 }
+                else{
 
-                if($sql_1_result->{type} eq "select"){
+                    if(config->{"dbi_to_use"} eq "SQLite"){
 
-                    my $old_table_name        = $sql_1_result->{description};
-                    my $old_table_name_id     = $old_table_name . "_id";
-                    my $old_table_name_status = "status_to_" . $old_table_name_id;
+                        my @column_name_array     = ();
+                        my @column_name_array_new = ();
+                        my @column_array          = ();
+                        my @f_column_array        = ();
 
-                    my $old_column_name     = $sql_1_result->{description} . "_to_stuff_tracker_id";
-                    my $old_constraint_name = "stuf_tracker_" . $sql_1_result->{description} . "_to_stuff_tracker_id_fkey";
+                        $sql->{4} = qq(select 
+                                       a.description as column_name,
+                                       b.name as column_type 
+                                      from 
+                                       db_column a,
+                                       db_column_type b
+                                      where 
+                                       b.db_column_type_id = a.db_column_type_to_db_column_id);
+                        $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
+                        $sth->{4}->execute() or carp("Error in sth_4 execute");
+                        my $sql_4_result = $sth->{4}->fetchall_arrayref({});
+                        $sth->{4}->finish;
 
-                    my $new_table_name        = $sub_hash->{description};
-                    my $new_table_name_id     = $new_table_name . "_id";
-                    my $new_table_name_status = "status_to_" . $new_table_name_id;
+                        for my $row (@$sql_4_result){
+                            
+                            if($row->{column_type} eq "varchar"){
+                                push @column_array, "$row->{column_name} varchar(100) null";
+                                push @column_name_array, $row->{column_name};
+                                push @column_name_array_new, $row->{column_name};
+                            }
+                            if($row->{column_type} eq "date"){
+                                push @column_array, "$row->{column_name} timestamp null";
+                                push @column_name_array, $row->{column_name};
+                                push @column_name_array_new, $row->{column_name};
+                            }
+                            if($row->{column_type} eq "select"){
+                                if($row->{column_name} ne $new_column){
+                                    my $column_name = $row->{column_name} . "_to_stuff_tracker_id";
+                                    my $column_id   = $row->{column_name} . "_id";
+                                    push @column_array, "$column_name int4 null";
+                                    push @f_column_array, "FOREIGN KEY ($column_name) references $row->{column_name} ($column_id)";
+                                    push @column_name_array, $column_name;
+                                    push @column_name_array_new, $column_name;
+                                }
+                            }
+                        }
 
-                    my $new_column_name     = $sub_hash->{description} . "_to_stuff_tracker_id";
-                    my $new_constraint_name = "stuf_tracker_" . $sub_hash->{description} . "_to_stuff_tracker_id_fkey";
+                        ## Add old column name for initial select
+                        push @column_name_array, $sql_1_result->{description} . "_to_stuff_tracker_id";
 
-                    my %statement_hash = ( 
-                        4 => qq(DROP CONSTRAINT $old_constraint_name),
-                        5 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_status TO $new_table_name_status),
-                        6 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_id TO $new_table_name_id),
-                        7 => qq(ALTER TABLE $old_table_name RENAME TO $new_table_name),
-                        8 => qq(ALTER TABLE stuff_tracker RENAME COLUMN $old_column_name TO $new_column_name),
-                        9 => qq(ALTER TABLE stuff_tracker ADD CONSTRAINT $new_constraint_name FOREIGN KEY ($new_column_name) REFERENCES $new_table_name ($new_table_name_id) MATCH SIMPLE)
-                    ); 
+                        my $column_string = qq(stuff_tracker_id,created,updated);
 
-                    for my $key (sort {$a <=> $b} keys %statement_hash){
-                        $sql->{$key} = $statement_hash{$key};
-                        $sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
-                        $sth->{$key}->execute() or carp("Error in sth_$key execute");
-                        $sth->{$key}->finish;
+                        if($column_name_array[0]){
+                            if($column_name_array[1]){
+                                $column_string .=  ",";
+                                my $last_one = pop @column_name_array;
+                                for my $row (@column_name_array){
+                                    $column_string .=  " $row, ";
+                                }
+                                $column_string .=  " $last_one ";
+                            }
+                            else{
+                                $column_string .=  ", $column_name_array[0] ";
+                            }
+                        }
+
+                        $dbh->do("create temporary table stuff_tracker_b as select $column_string from stuff_tracker") or carp("Error in SQLite RENAME COLUMN 1");
+                        $dbh->do("drop table stuff_tracker") or carp("Error in SQLite RENAME COLUMN 2");
+
+                        ## create foreign table
+
+                        my $old_table_name        = $sql_1_result->{description};
+                        my $old_table_name_temp   = $sql_1_result->{description} . "_b";
+                        my $old_table_name_id     = $old_table_name . "_id";
+                        my $old_table_name_status = "status_to_" . $old_table_name_id;
+
+                        my $new_table_name        = lc($sub_hash->{description});
+                        my $new_table_name_id     = $new_table_name . "_id";
+                        my $new_table_name_status = "status_to_" . $new_table_name_id;
+                        my $primary_key           = &_primary_key_to_use();
+
+                        $sql->{5} = qq(create temporary table $old_table_name_temp as select $old_table_name_id,description,$old_table_name_status from $old_table_name);
+
+                        $dbh->do($sql->{5}) or carp("Error in SQLite RENAME COLUMN 3");
+                        $dbh->do("drop table $old_table_name") or carp("Error in SQLite RENAME COLUMN 4");
+
+                        ($sql->{6} = qq{CREATE TABLE $new_table_name (
+                                       $new_table_name_id $primary_key, 
+                                       description varchar(100) not null,
+                                       $new_table_name_status int4 not null DEFAULT 1,
+                                       FOREIGN KEY ($new_table_name_status) REFERENCES status (status_id)\n)}) =~ s/^ {35}//mg;
+
+                        $dbh->do($sql->{6}) or carp("Error in SQLite RENAME COLUMN 5");
+
+                        $dbh->do("insert into $new_table_name ($new_table_name_id,description,$new_table_name_status) select $old_table_name_id,description,$old_table_name_status from $old_table_name_temp") or carp("Error in SQLite RENAME COLUMN 6");
+
+                        ## create main table
+
+                        ($sql->{main} = qq{create table stuff_tracker(
+                                           stuff_tracker_id integer primary key,
+                                           created timestamp not null,
+                                           updated timestamp null}) =~ s/^ {39}//mg;
+
+                        ## Add new column to arrays
+                        push @column_array, $new_column . "_to_stuff_tracker_id int4 null";
+                        push @f_column_array, "FOREIGN KEY (" . $new_column . "_to_stuff_tracker_id) references $new_column (" . $new_column . "_id)";
+
+                        if($column_array[0]){
+                            if($column_array[1]){
+                                $sql->{main} .= ",\n";
+                                my $last_one = pop @column_array;
+                                for my $row (@column_array){
+                                    $sql->{main} .= "    $row,\n";
+                                }
+                                $sql->{main} .=  "    $last_one";
+                            }
+                            else{
+                                $sql->{main} .= ",\n    $column_array[0]";
+                            }
+                        }
+
+                        if($f_column_array[0]){
+                            if($f_column_array[1]){
+                                $sql->{main} .= ",\n";
+                                my $last_one = pop @f_column_array;
+                                for my $row (@f_column_array){
+                                    $sql->{main} .= "    $row,\n";
+                                }
+                                $sql->{main} .= "    $last_one";
+                            }
+                            else{
+                                $sql->{main} .= ",\n    $f_column_array[0]";
+                            }
+                        }
+
+                        $sql->{main} .=  ")\n";
+
+                        $dbh->do($sql->{main}) or carp("Error in sth_main execute");
+                       
+                        ## Add new column name for last select
+                        push @column_name_array_new, $new_column . "_to_stuff_tracker_id";
+                        my $column_string_new = qq(stuff_tracker_id,created,updated);
+
+                        if($column_name_array_new[0]){
+                            if($column_name_array_new[1]){
+                                $column_string_new .=  ",";
+                                my $last_one = pop @column_name_array_new;
+                                for my $row (@column_name_array_new){
+                                    $column_string_new .=  " $row, ";
+                                }
+                                $column_string_new .=  " $last_one ";
+                            }
+                            else{
+                                $column_string_new .=  ", $column_name_array_new[0] ";
+                            }
+                        }
+
+                        $sql->{main_insert} = qq(insert into stuff_tracker ($column_string_new) select $column_string from stuff_tracker_b);
+                        $dbh->do($sql->{main_insert}) or carp("Error in SQLite RENAME COLUMN 7");
+                    }
+                    else{
+
+                        my $old_table_name        = $sql_1_result->{description};
+                        my $old_table_name_id     = $old_table_name . "_id";
+                        my $old_table_name_status = "status_to_" . $old_table_name_id;
+
+                        my $old_column_name     = $sql_1_result->{description} . "_to_stuff_tracker_id";
+                        my $old_constraint_name = "stuf_tracker_" . $sql_1_result->{description} . "_to_stuff_tracker_id_fkey";
+
+                        my $new_table_name        = lc($sub_hash->{description});
+                        my $new_table_name_id     = $new_table_name . "_id";
+                        my $new_table_name_status = "status_to_" . $new_table_name_id;
+
+                        my $new_column_name     = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
+                        my $new_constraint_name = "stuf_tracker_" . lc($sub_hash->{description}) . "_to_stuff_tracker_id_fkey";
+
+                        my %statement_hash = ( 
+                            4 => qq(DROP CONSTRAINT $old_constraint_name),
+                            5 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_status TO $new_table_name_status),
+                            6 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_id TO $new_table_name_id),
+                            7 => qq(ALTER TABLE $old_table_name RENAME TO $new_table_name),
+                            8 => qq(ALTER TABLE stuff_tracker RENAME COLUMN $old_column_name TO $new_column_name),
+                            9 => qq(ALTER TABLE stuff_tracker ADD CONSTRAINT $new_constraint_name FOREIGN KEY ($new_column_name) REFERENCES $new_table_name ($new_table_name_id) MATCH SIMPLE)
+                        ); 
+
+                        for my $key (sort {$a <=> $b} keys %statement_hash){
+                            $sql->{$key} = $statement_hash{$key};
+                            $sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
+                            $sth->{$key}->execute() or carp("Error in sth_$key execute");
+                            $sth->{$key}->finish;
+                        }
                     }
                 }
                 $sub_output = "Edited column from \"$sql_1_result->{description}\" to \"$sub_hash->{description}\" successfully!";

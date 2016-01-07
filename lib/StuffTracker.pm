@@ -9,7 +9,6 @@ our $VERSION = '0.2';
 
 use DBI;
 use Carp;
-use Data::Dumper;
 
 ###
 ## Database Variables
@@ -48,7 +47,7 @@ get '/stuff_tracker/:rid?' => sub {
     my $result = &stuff_tracker({ content_range => $header_hash->{'x-range'}, params => $hashref });
 
     if($output){
-        #header('Content-Type' => 'text/csv','Content-Disposition' => 'attachment; filename="arc.csv"');
+        header('Content-Type' => 'text/csv','Content-Disposition' => 'attachment; filename="arc.csv"');
         #for(@{$result->{csv_output}}){
         #    return $_;
         #}
@@ -56,7 +55,9 @@ get '/stuff_tracker/:rid?' => sub {
         return $scal;
     }
     else{
-        header('Content-Range' => "$result->{content_range}/$result->{result_count}");
+        if(not defined(params->{rid})){
+            header('Content-Range' => "$result->{content_range}/$result->{result_count}");
+        }
         return $result->{json_output};
     }
 };
@@ -389,6 +390,12 @@ sub stuff_tracker {
         }
     }
 
+    if($rid){
+        if($rid =~ /^\d+$/){
+            $sql->{1} .= qq( and stuff_tracker.stuff_tracker_id = $rid );
+        }    
+    }    
+
     ## Filter Dates
     my $date_hash_not_empty = undef;
     $date_hash_not_empty    = (keys %$date_hash)[-1];
@@ -411,11 +418,13 @@ sub stuff_tracker {
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
     $sth->{1}->finish;
 
-    $sth->{count} = $dbh->prepare($sql->{count}) or carp("Error in sth_count");
-    $sth->{count}->execute() or carp("Error in sth_count");
-    my $sql_count_result = $sth->{count}->fetchrow_arrayref;
-    $sth->{count}->finish;
-    $result_count = $sql_count_result->[0];
+    if(not defined($rid)){
+        $sth->{count} = $dbh->prepare($sql->{count}) or carp("Error in sth_count");
+        $sth->{count}->execute() or carp("Error in sth_count");
+        my $sql_count_result = $sth->{count}->fetchrow_arrayref;
+        $sth->{count}->finish;
+        $result_count = $sql_count_result->[0];
+    }
 
     $dbh->disconnect;
 
@@ -457,9 +466,14 @@ sub stuff_tracker {
         return ({csv_output => $result_array});
     }
     else{
-        return ({ json_output   => to_json($sql_1_result),
-                  content_range => $content_range,
-                  result_count  => $result_count });
+        if(defined($rid)){
+            return ({ json_output => to_json($sql_1_result, {utf8 => 0}) });
+        }
+        else{
+            return ({ json_output   => to_json($sql_1_result, {utf8 => 0}),
+                      content_range => $content_range,
+                      result_count  => $result_count });
+        }
     }
 }
 
@@ -502,7 +516,7 @@ sub stuff_tracker_columns {
     $sth->{1}->finish;
     $dbh->disconnect;
 
-     return ({ json_output => to_json($result_array) });
+     return ({ json_output => to_json($result_array, {utf8 => 0}) });
 }
 
 sub add_stuff {
@@ -850,7 +864,7 @@ sub filtering_select {
     }
     $dbh->disconnect;
 
-    return ({ json_output => to_json($result_array) });
+    return ({ json_output => to_json($result_array, {utf8 => 0}) });
 }
 
 sub admin_grid {
@@ -919,7 +933,7 @@ sub admin_grid {
 
     $dbh->disconnect;
 
-    return ({ json_output   => to_json($result_array),
+    return ({ json_output   => to_json($result_array, {utf8 => 0}),
               content_range => $content_range,
               result_count  => $result_count });
 }
@@ -1100,7 +1114,7 @@ sub column_grid {
 
     $dbh->disconnect;
 
-    return ({ json_output   => to_json($result_array),
+    return ({ json_output   => to_json($result_array, {utf8 => 0}),
               content_range => $content_range,
               result_count  => $result_count });
 }
@@ -1653,6 +1667,7 @@ sub _db_handle {
 
     if($db_hash->{dbi_to_use} eq "SQLite"){
         $dbh = DBI->connect("dbi:$db_hash->{dbi_to_use}:dbname=$db_hash->{db}","","", {RaiseError => 1}) or croak("Could not connect to DB: $DBI::errstr");
+        $dbh->{sqlite_unicode} = 1;
     }
     else{
         $dbh = DBI->connect("dbi:$db_hash->{dbi_to_use}:dbname=$db_hash->{db};host=$db_hash->{host};port=$db_hash->{port};","$db_hash->{username}","$db_hash->{password}") or croak("Could not connect to DB: $DBI::errstr");

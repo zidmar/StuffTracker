@@ -8,7 +8,6 @@ our $VERSION = '0.2';
 ###
 
 use DBI;
-use Carp;
 
 ###
 ## Database Variables
@@ -48,9 +47,6 @@ get '/stuff_tracker/:rid?' => sub {
 
     if($output){
         header('Content-Type' => 'text/csv','Content-Disposition' => 'attachment; filename="arc.csv"');
-        #for(@{$result->{csv_output}}){
-        #    return $_;
-        #}
         my $scal = join("", @{$result->{csv_output}});
         return $scal;
     }
@@ -214,8 +210,8 @@ sub stuff_tracker {
                     b.db_column_type_id = a.db_column_type_to_db_column_id
                     and a.status_to_db_column_id = ?);
 
-    $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-    $sth->{2}->execute(1) or carp("Error in sth_2 execute");
+    $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+    $sth->{2}->execute(1) or error("Error in sth_2 execute");
     my $sql_2_result = $sth->{2}->fetchall_arrayref({});
 
     for my $row (@$sql_2_result){
@@ -413,14 +409,14 @@ sub stuff_tracker {
 
     $sql->{1} .= " LIMIT $limit OFFSET $offset ";
 
-    $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-    $sth->{1}->execute() or carp("Error in sth_1 execute");
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute() or error("Error in sth_1 execute");
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
     $sth->{1}->finish;
 
     if(not defined($rid)){
-        $sth->{count} = $dbh->prepare($sql->{count}) or carp("Error in sth_count");
-        $sth->{count}->execute() or carp("Error in sth_count");
+        $sth->{count} = $dbh->prepare($sql->{count}) or error("Error in sth_count");
+        $sth->{count}->execute() or error("Error in sth_count");
         my $sql_count_result = $sth->{count}->fetchrow_arrayref;
         $sth->{count}->finish;
         $result_count = $sql_count_result->[0];
@@ -501,8 +497,8 @@ sub stuff_tracker_columns {
                     and a.status_to_db_column_id = ?
                     order by a.column_order);
 
-    $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-    $sth->{1}->execute(1) or carp("Error in sth_1 execute");
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute(1) or error("Error in sth_1 execute");
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
 
     for my $row (@$sql_1_result){
@@ -541,8 +537,8 @@ sub add_stuff {
                     b.db_column_type_id = a.db_column_type_to_db_column_id
                     and a.status_to_db_column_id = ?);
 
-    $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-    $sth->{1}->execute(1) or carp("Error in sth_1 execute");
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute(1) or error("Error in sth_1 execute");
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
 
     for my $row (@$sql_1_result){
@@ -565,8 +561,8 @@ sub add_stuff {
     if($column_hash_not_empty){
 
         $sql->{1} = "insert into stuff_tracker (created) values (" . &_now_to_use() . ")";
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute() or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute() or error("Error in sth_1 execute");
         $sth->{1}->finish;
 
         my $last_id = $dbh->last_insert_id(undef,undef,"stuff_tracker",undef) || undef;
@@ -578,8 +574,8 @@ sub add_stuff {
             for my $column (keys %$column_hash){
 
                 $sql->{2} = qq(update stuff_tracker set $column = ? where stuff_tracker_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2} = $sth->{2}->execute($column_hash->{ $column },$last_id) or carp("Error in sth_2 execute");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                $sth->{2} = $sth->{2}->execute($column_hash->{ $column },$last_id) or error("Error in sth_2 execute");
             }
         }
     }
@@ -607,8 +603,8 @@ sub modify_stuff {
                     b.db_column_type_id = a.db_column_type_to_db_column_id
                     and a.status_to_db_column_id = ?);
 
-    $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-    $sth->{1}->execute(1) or carp("Error in sth_1 execute");
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute(1) or error("Error in sth_1 execute");
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
 
     for my $row (@$sql_1_result){
@@ -659,8 +655,8 @@ sub modify_stuff {
                     my $f_column_name_id = $column_name . "_id";
                     #$sql->{3} = qq(select description from $column_name where $f_column_name_id = ?);
                     $sql->{3} = qq(select $f_column_name_id as fid from $column_name where description = ?);
-                    $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                    $sth->{3}->execute($column_value) or carp("Error in sth_3");
+                    $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
+                    $sth->{3}->execute($column_value) or error("Error in sth_3");
                     my $sql_result = $sth->{3}->fetchrow_hashref || {};
                     $sth->{3}->finish;
 
@@ -671,8 +667,8 @@ sub modify_stuff {
                 }
             }
 
-            $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-            $sth->{1}->execute($sub_hash->{id}) or carp("Error in sth_1");
+            $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+            $sth->{1}->execute($sub_hash->{id}) or error("Error in sth_1");
             my $sql_result = $sth->{1}->fetchrow_hashref || {};
             $sth->{1}->finish;
 
@@ -680,14 +676,14 @@ sub modify_stuff {
 
             ## Update
             if($sql->{2}){
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
 
                 if($column_value ne $sql_result_value){
                     if($column_value eq "_NULL_"){
-                        $sth->{2}->execute(undef,$sub_hash->{id}) or carp("Error in sth_2");
+                        $sth->{2}->execute(undef,$sub_hash->{id}) or error("Error in sth_2");
                     }
                     else{
-                        $sth->{2}->execute($column_value,$sub_hash->{id}) or carp("Error in sth_2");
+                        $sth->{2}->execute($column_value,$sub_hash->{id}) or error("Error in sth_2");
                     }
                 }
                 $sth->{2}->finish;
@@ -712,8 +708,8 @@ sub delete_stuff {
     if($sub_hash->{rid}){
 
         $sql->{1} = qq(delete from stuff_tracker where stuff_tracker_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($sub_hash->{rid}) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($sub_hash->{rid}) or error("Error in sth_1 execute");
         $sth->{1}->finish;
 
         $sub_output = "Deleted entry successfully!";
@@ -740,8 +736,8 @@ sub filtering_select {
         if($input eq "column_type"){
 
             $sql->{1} = qq(select db_column_type_id as id,description from db_column_type);
-            $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-            $sth->{1}->execute() or carp("Error in sth_1 execute");
+            $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+            $sth->{1}->execute() or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchall_arrayref({});
             $sth->{1}->finish;
 
@@ -796,8 +792,8 @@ sub filtering_select {
         else{
 
             $sql->{1} = qq(select description from db_column where db_column_id = ?);
-            $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-            $sth->{1}->execute($input) or carp("Error in sth_1 execute");
+            $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+            $sth->{1}->execute($input) or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchrow_hashref;
             $sth->{1}->finish;
 
@@ -808,8 +804,8 @@ sub filtering_select {
 
             $sql->{2} = qq(select $column_id as id,description from $table 
                            where $column_status = 1 order by description);
-            $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-            $sth->{2}->execute() or carp("Error in sth_2 execute");
+            $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+            $sth->{2}->execute() or error("Error in sth_2 execute");
             my $sql_2_result = $sth->{2}->fetchall_arrayref({}) || [];
             $sth->{2}->finish;
 
@@ -892,8 +888,8 @@ sub admin_grid {
     if($column_id){
 
         $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($column_id) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
@@ -902,8 +898,8 @@ sub admin_grid {
         my $row_status = "status_to_" . $table . "_id";
 
         $sql->{2} = qq(select $table_id as id, description, $row_status as status from $table);
-        $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-        $sth->{2}->execute() or carp("Error in sth_2 execute");
+        $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+        $sth->{2}->execute() or error("Error in sth_2 execute");
         my $sql_2_result = $sth->{2}->fetchall_arrayref({});
 
         for my $row (@$sql_2_result){
@@ -911,10 +907,10 @@ sub admin_grid {
             my $status = $row->{status} || 2;
             
             if($status eq 1){
-                $status = true;
+                $status = bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' );
             }
             else{
-                $status = false;
+                $status = bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' );
             }
 
             push @$result_array, { id             => $row->{id}, 
@@ -924,8 +920,8 @@ sub admin_grid {
         $sth->{2}->finish;
 
         $sql->{count} = qq(select count($table_id) from $table);
-        $sth->{count} = $dbh->prepare($sql->{count}) or carp("Error in sth_count");
-        $sth->{count}->execute() or carp("Error in sth_count");
+        $sth->{count} = $dbh->prepare($sql->{count}) or error("Error in sth_count");
+        $sth->{count}->execute() or error("Error in sth_count");
         my $sql_count_result = $sth->{count}->fetchrow_arrayref;
         $sth->{count}->finish;
         $result_count = $sql_count_result->[0];
@@ -954,16 +950,16 @@ sub admin_add {
     if($column_id){
 
         $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($column_id) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
         my $table = $sql_1_result->{table_name};
 
         $sql->{2} = qq(insert into $table (description) values (?));
-        $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-        $sth->{2}->execute($description) or carp("Error in sth_2 execute");
+        $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+        $sth->{2}->execute($description) or error("Error in sth_2 execute");
         $sth->{2}->finish;
 
         my $current_host_id = $dbh->last_insert_id(undef,undef,$table,undef) || undef;
@@ -993,8 +989,8 @@ sub modify_admin {
     if($id){
 
         $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($column_id) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
@@ -1002,21 +998,21 @@ sub modify_admin {
         my $table_id = $table . "_id";
 
         $sql->{2} = qq(select description from $table where $table_id = ?);
-        $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-        $sth->{2}->execute($id) or carp("Error in sth_2");
+        $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+        $sth->{2}->execute($id) or error("Error in sth_2");
         my $sql_result_2 = $sth->{2}->fetchrow_hashref || {};
         $sth->{2}->finish;
 
         if($description ne $sql_result_2->{description}){
 
             $sql->{3} = qq(update $table set description = ? where $table_id = ?);
-            $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
+            $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
 
             if($description eq "_NULL_"){
-                $sth->{3}->execute(undef,$id) or carp("Error in sth_3");
+                $sth->{3}->execute(undef,$id) or error("Error in sth_3");
             }
             else{
-                $sth->{3}->execute($description,$id) or carp("Error in sth_3");
+                $sth->{3}->execute($description,$id) or error("Error in sth_3");
             }
             $sth->{3}->finish;
         }
@@ -1024,15 +1020,15 @@ sub modify_admin {
         my $status_column  = "status_to_" . $table . "_id";
 
         $sql->{4} = qq(select $status_column as status from $table where $table_id = ?);
-        $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
-        $sth->{4}->execute($id) or carp("Error in sth_4");
+        $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+        $sth->{4}->execute($id) or error("Error in sth_4");
         my $sql_result_4 = $sth->{4}->fetchrow_hashref || {};
         $sth->{4}->finish;
 
         if($status ne $sql_result_4->{status}){
             $sql->{5} = qq(update $table set $status_column = ? where $table_id = ?);
-            $sth->{5} = $dbh->prepare($sql->{5}) or carp("Error in sth_5");
-            $sth->{5}->execute($status,$id) or carp("Error in sth_5");
+            $sth->{5} = $dbh->prepare($sql->{5}) or error("Error in sth_5");
+            $sth->{5}->execute($status,$id) or error("Error in sth_5");
             $sth->{5}->finish;
         }
     }
@@ -1074,8 +1070,8 @@ sub column_grid {
                    where 
                     b.db_column_type_id = a.db_column_type_to_db_column_id
                     order by a.column_order);
-    $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-    $sth->{1}->execute() or carp("Error in sth_1 execute");
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute() or error("Error in sth_1 execute");
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
     $sth->{1}->finish;
 
@@ -1084,10 +1080,10 @@ sub column_grid {
         my $status = $row->{status} || 2;
         
         if($status eq 1){
-            $status = true;
+            $status = bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' );
         }
         else{
-            $status = false;
+            $status = bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' );
         }
 
         push @$result_array, { id          => $row->{id}, 
@@ -1106,8 +1102,8 @@ sub column_grid {
                         db_column_type b
                        where 
                         b.db_column_type_id = a.db_column_type_to_db_column_id);
-    $sth->{count} = $dbh->prepare($sql->{count}) or carp("Error in sth_count");
-    $sth->{count}->execute() or carp("Error in sth_count");
+    $sth->{count} = $dbh->prepare($sql->{count}) or error("Error in sth_count");
+    $sth->{count}->execute() or error("Error in sth_count");
     my $sql_count_result = $sth->{count}->fetchrow_arrayref;
     $sth->{count}->finish;
     $result_count = $sql_count_result->[0];
@@ -1132,14 +1128,14 @@ sub column_admin {
     if($sub_hash->{action} eq "add"){
 
         $sql->{1} = qq(select name as type from db_column_type where db_column_type_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($sub_hash->{type}) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($sub_hash->{type}) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
         $sql->{2} = qq(select db_column_id from db_column where description = ?);
-        $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-        $sth->{2}->execute($sub_hash->{description}) or carp("Error in sth_2 execute");
+        $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+        $sth->{2}->execute($sub_hash->{description}) or error("Error in sth_2 execute");
         my $sql_2_result = $sth->{2}->fetchrow_hashref;
         $sth->{2}->finish;
 
@@ -1150,20 +1146,20 @@ sub column_admin {
                 my $new_column = lc($sub_hash->{description});
 
                 $sql->{3} = qq(insert into db_column (description,db_column_type_to_db_column_id) values (?,?));
-                $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                $sth->{3}->execute($new_column,$sub_hash->{type}) or carp("Error in sth_3 execute");
+                $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
+                $sth->{3}->execute($new_column,$sub_hash->{type}) or error("Error in sth_3 execute");
                 $sth->{3}->finish;
 
                 if($sql_1_result->{type} eq "varchar"){
                     $sql->{4} = qq(alter table stuff_tracker add column $new_column varchar(100) null);
-                    $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
-                    $sth->{4}->execute() or carp("Error in sth_4 execute");
+                    $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                    $sth->{4}->execute() or error("Error in sth_4 execute");
                     $sth->{4}->finish;
                 }
                 if($sql_1_result->{type} eq "date"){
                     $sql->{4} = qq(alter table stuff_tracker add column $new_column timestamp null);
-                    $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
-                    $sth->{4}->execute() or carp("Error in sth_4 execute");
+                    $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                    $sth->{4}->execute() or error("Error in sth_4 execute");
                     $sth->{4}->finish;
                 }
 
@@ -1189,8 +1185,8 @@ sub column_admin {
 
                         for my $key (sort {$a <=> $b} keys %statement_hash){
                             $sql->{$key} = $statement_hash{$key};
-                            $sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
-                            $sth->{$key}->execute() or carp("Error in sth_$key execute");
+                            $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+                            $sth->{$key}->execute() or error("Error in sth_$key execute");
                             $sth->{$key}->finish;
                         }
 
@@ -1206,8 +1202,8 @@ sub column_admin {
                                        db_column_type b
                                       where 
                                        b.db_column_type_id = a.db_column_type_to_db_column_id);
-                        $sth->{8} = $dbh->prepare($sql->{8}) or carp("Error in sth_8");
-                        $sth->{8}->execute() or carp("Error in sth_8 execute");
+                        $sth->{8} = $dbh->prepare($sql->{8}) or error("Error in sth_8");
+                        $sth->{8}->execute() or error("Error in sth_8 execute");
                         my $sql_8_result = $sth->{8}->fetchall_arrayref({});
                         $sth->{8}->finish;
 
@@ -1249,13 +1245,13 @@ sub column_admin {
                         }
 
                         $sql->{9} = qq(create temporary table stuff_tracker_b as select $column_string from stuff_tracker);
-                        $sth->{9} = $dbh->prepare($sql->{9}) or carp("Error in sth_9");
-                        $sth->{9}->execute() or carp("Error in sth_9 execute");
+                        $sth->{9} = $dbh->prepare($sql->{9}) or error("Error in sth_9");
+                        $sth->{9}->execute() or error("Error in sth_9 execute");
                         $sth->{9}->finish;
 
                         $sql->{10} = qq(drop table stuff_tracker);
-                        $sth->{10} = $dbh->prepare($sql->{10}) or carp("Error in sth_10");
-                        $sth->{10}->execute() or carp("Error in sth_10 execute");
+                        $sth->{10} = $dbh->prepare($sql->{10}) or error("Error in sth_10");
+                        $sth->{10}->execute() or error("Error in sth_10 execute");
                         $sth->{10}->finish;
 
                         ## create table
@@ -1292,13 +1288,13 @@ sub column_admin {
 
                         $sql->{main} .=  " ) ";
 
-                        $sth->{main} = $dbh->prepare($sql->{main}) or carp("Error in sth_main");
-                        $sth->{main}->execute() or carp("Error in sth_main execute");
+                        $sth->{main} = $dbh->prepare($sql->{main}) or error("Error in sth_main");
+                        $sth->{main}->execute() or error("Error in sth_main execute");
                         $sth->{main}->finish;
 
                         $sql->{11} = qq{insert into stuff_tracker ($column_string) select $column_string from stuff_tracker_b};
-                        $sth->{11} = $dbh->prepare($sql->{11}) or carp("Error in sth_11");
-                        $sth->{11}->execute() or carp("Error in sth_11 execute");
+                        $sth->{11} = $dbh->prepare($sql->{11}) or error("Error in sth_11");
+                        $sth->{11}->execute() or error("Error in sth_11 execute");
                         $sth->{11}->finish;
                     }
                     else{
@@ -1325,8 +1321,8 @@ sub column_admin {
 
 						for my $key (sort {$a <=> $b} keys %statement_hash){
 							$sql->{$key} = $statement_hash{$key};
-							$sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
-							$sth->{$key}->execute() or carp("Error in sth_$key execute");
+							$sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+							$sth->{$key}->execute() or error("Error in sth_$key execute");
 							$sth->{$key}->finish;
 						}
                     }
@@ -1354,8 +1350,8 @@ sub column_admin {
                         b.db_column_type_id = a.db_column_type_to_db_column_id
                         and a.db_column_id = ?);
 
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($sub_hash->{id}) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($sub_hash->{id}) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
@@ -1366,8 +1362,8 @@ sub column_admin {
             ## Order
             if($sql_1_result->{column_order} ne $sub_hash->{order}){
                 $sql->{2} = qq(update db_column set column_order = ? where db_column_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2}->execute($sub_hash->{order},$sub_hash->{id}) or carp("Error in sth_2 execute");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                $sth->{2}->execute($sub_hash->{order},$sub_hash->{id}) or error("Error in sth_2 execute");
                 $sth->{2}->finish;
                 $sub_output = "Edited column from \"$sql_1_result->{column_order}\" to \"$sub_hash->{order}\" successfully!";
             }
@@ -1375,8 +1371,8 @@ sub column_admin {
             ## Size
             if($sql_1_result->{column_size} ne $sub_hash->{size}){
                 $sql->{2} = qq(update db_column set column_size = ? where db_column_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2}->execute($sub_hash->{size},$sub_hash->{id}) or carp("Error in sth_2 execute");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                $sth->{2}->execute($sub_hash->{size},$sub_hash->{id}) or error("Error in sth_2 execute");
                 $sth->{2}->finish;
                 $sub_output = "Edited column from \"$sql_1_result->{column_size}\" to \"$sub_hash->{size}\" successfully!";
             }
@@ -1384,8 +1380,8 @@ sub column_admin {
             ## Status
             if($sql_1_result->{status} ne $status){
                 $sql->{2} = qq(update db_column set status_to_db_column_id = ? where db_column_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2}->execute($status,$sub_hash->{id}) or carp("Error in sth_2 execute");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                $sth->{2}->execute($status,$sub_hash->{id}) or error("Error in sth_2 execute");
                 $sth->{2}->finish;
             }
 
@@ -1393,24 +1389,24 @@ sub column_admin {
             if($sql_1_result->{description} ne $new_column){
 
                 $sql->{2} = qq(update db_column set description = ? where db_column_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-                $sth->{2}->execute($new_column,$sub_hash->{id}) or carp("Error in sth_2 execute");
+                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                $sth->{2}->execute($new_column,$sub_hash->{id}) or error("Error in sth_2 execute");
                 $sth->{2}->finish;
 
                 if($sql_1_result->{type} ne "select"){
 
                     if(config->{"dbi_to_use"} eq "SQLite"){
-                        $dbh->do("BEGIN") or carp("Error in SQLite RENAME COLUMN 1");
-                        $dbh->do("PRAGMA writable_schema=1") or carp("Error in SQLite RENAME COLUMN 2");
+                        $dbh->do("BEGIN") or error("Error in SQLite RENAME COLUMN 1");
+                        $dbh->do("PRAGMA writable_schema=1") or error("Error in SQLite RENAME COLUMN 2");
                         my $update_sql = "UPDATE sqlite_master SET SQL=REPLACE(SQL,'" . $sql_1_result->{description} . "','" . $new_column . "') WHERE name='stuff_tracker'";
-                        $dbh->do($update_sql) or carp("Error in SQLite RENAME COLUMN 3");
-                        $dbh->do("PRAGMA writable_schema=0") or carp("Error in SQLite RENAME COLUMN 4");
-                        $dbh->do("COMMIT") or carp("Error in SQLite RENAME COLUMN 5");
+                        $dbh->do($update_sql) or error("Error in SQLite RENAME COLUMN 3");
+                        $dbh->do("PRAGMA writable_schema=0") or error("Error in SQLite RENAME COLUMN 4");
+                        $dbh->do("COMMIT") or error("Error in SQLite RENAME COLUMN 5");
                     }
                     else{
                         $sql->{3} = qq(ALTER TABLE stuff_tracker RENAME COLUMN $sql_1_result->{description} TO $new_column);
-                        $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                        $sth->{3}->execute() or carp("Error in sth_3 execute");
+                        $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
+                        $sth->{3}->execute() or error("Error in sth_3 execute");
                         $sth->{3}->finish;
                     }
                 }
@@ -1431,8 +1427,8 @@ sub column_admin {
                                        db_column_type b
                                       where 
                                        b.db_column_type_id = a.db_column_type_to_db_column_id);
-                        $sth->{4} = $dbh->prepare($sql->{4}) or carp("Error in sth_4");
-                        $sth->{4}->execute() or carp("Error in sth_4 execute");
+                        $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                        $sth->{4}->execute() or error("Error in sth_4 execute");
                         my $sql_4_result = $sth->{4}->fetchall_arrayref({});
                         $sth->{4}->finish;
 
@@ -1479,8 +1475,8 @@ sub column_admin {
                             }
                         }
 
-                        $dbh->do("create temporary table stuff_tracker_b as select $column_string from stuff_tracker") or carp("Error in SQLite RENAME COLUMN 1");
-                        $dbh->do("drop table stuff_tracker") or carp("Error in SQLite RENAME COLUMN 2");
+                        $dbh->do("create temporary table stuff_tracker_b as select $column_string from stuff_tracker") or error("Error in SQLite RENAME COLUMN 1");
+                        $dbh->do("drop table stuff_tracker") or error("Error in SQLite RENAME COLUMN 2");
 
                         ## create foreign table
 
@@ -1496,8 +1492,8 @@ sub column_admin {
 
                         $sql->{5} = qq(create temporary table $old_table_name_temp as select $old_table_name_id,description,$old_table_name_status from $old_table_name);
 
-                        $dbh->do($sql->{5}) or carp("Error in SQLite RENAME COLUMN 3");
-                        $dbh->do("drop table $old_table_name") or carp("Error in SQLite RENAME COLUMN 4");
+                        $dbh->do($sql->{5}) or error("Error in SQLite RENAME COLUMN 3");
+                        $dbh->do("drop table $old_table_name") or error("Error in SQLite RENAME COLUMN 4");
 
                         ($sql->{6} = qq{CREATE TABLE $new_table_name (
                                        $new_table_name_id $primary_key, 
@@ -1505,9 +1501,9 @@ sub column_admin {
                                        $new_table_name_status int4 not null DEFAULT 1,
                                        FOREIGN KEY ($new_table_name_status) REFERENCES status (status_id)\n)}) =~ s/^ {35}//mg;
 
-                        $dbh->do($sql->{6}) or carp("Error in SQLite RENAME COLUMN 5");
+                        $dbh->do($sql->{6}) or error("Error in SQLite RENAME COLUMN 5");
 
-                        $dbh->do("insert into $new_table_name ($new_table_name_id,description,$new_table_name_status) select $old_table_name_id,description,$old_table_name_status from $old_table_name_temp") or carp("Error in SQLite RENAME COLUMN 6");
+                        $dbh->do("insert into $new_table_name ($new_table_name_id,description,$new_table_name_status) select $old_table_name_id,description,$old_table_name_status from $old_table_name_temp") or error("Error in SQLite RENAME COLUMN 6");
 
                         ## create main table
 
@@ -1550,7 +1546,7 @@ sub column_admin {
 
                         $sql->{main} .=  ")\n";
 
-                        $dbh->do($sql->{main}) or carp("Error in sth_main execute");
+                        $dbh->do($sql->{main}) or error("Error in sth_main execute");
                        
                         ## Add new column name for last select
                         push @column_name_array_new, $new_column . "_to_stuff_tracker_id";
@@ -1571,7 +1567,7 @@ sub column_admin {
                         }
 
                         $sql->{main_insert} = qq(insert into stuff_tracker ($column_string_new) select $column_string from stuff_tracker_b);
-                        $dbh->do($sql->{main_insert}) or carp("Error in SQLite RENAME COLUMN 7");
+                        $dbh->do($sql->{main_insert}) or error("Error in SQLite RENAME COLUMN 7");
                     }
                     else{
 
@@ -1600,8 +1596,8 @@ sub column_admin {
 
                         for my $key (sort {$a <=> $b} keys %statement_hash){
                             $sql->{$key} = $statement_hash{$key};
-                            $sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
-                            $sth->{$key}->execute() or carp("Error in sth_$key execute");
+                            $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+                            $sth->{$key}->execute() or error("Error in sth_$key execute");
                             $sth->{$key}->finish;
                         }
                     }
@@ -1614,22 +1610,22 @@ sub column_admin {
     if($sub_hash->{action} eq "delete"){
 
         $sql->{1} = qq(select description,db_column_type_to_db_column_id as type from db_column where db_column_id = ?);
-        $sth->{1} = $dbh->prepare($sql->{1}) or carp("Error in sth_1");
-        $sth->{1}->execute($sub_hash->{id}) or carp("Error in sth_1 execute");
+        $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+        $sth->{1}->execute($sub_hash->{id}) or error("Error in sth_1 execute");
         my $sql_1_result = $sth->{1}->fetchrow_hashref;
         $sth->{1}->finish;
 
         if($sql_1_result->{description}){
 
             $sql->{2} = qq(delete from db_column where db_column_id = ?);
-            $sth->{2} = $dbh->prepare($sql->{2}) or carp("Error in sth_2");
-            $sth->{2}->execute($sub_hash->{id}) or carp("Error in sth_2 execute");
+            $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+            $sth->{2}->execute($sub_hash->{id}) or error("Error in sth_2 execute");
             $sth->{2}->finish;
 
             if($sql_1_result->{type} != 4){
                 $sql->{3} = qq(ALTER TABLE stuff_tracker DROP COLUMN $sql_1_result->{description});
-                $sth->{3} = $dbh->prepare($sql->{3}) or carp("Error in sth_3");
-                $sth->{3}->execute() or carp("Error in sth_3 execute");
+                $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
+                $sth->{3}->execute() or error("Error in sth_3 execute");
                 $sth->{3}->finish;
             }
 
@@ -1647,8 +1643,8 @@ sub column_admin {
 
                 for my $key (sort {$a <=> $b} keys %statement_hash){
                     $sql->{$key} = $statement_hash{$key};
-                    $sth->{$key} = $dbh->prepare($sql->{$key}) or carp("Error in sth_$key");
-                    $sth->{$key}->execute() or carp("Error in sth_$key execute");
+                    $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+                    $sth->{$key}->execute() or error("Error in sth_$key execute");
                     $sth->{$key}->finish;
                 }
             }
@@ -1656,7 +1652,7 @@ sub column_admin {
         }
     }
     $dbh->disconnect;
-    carp($sub_output);
+    debug($sub_output);
 }
 
 sub _db_handle {

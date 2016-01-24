@@ -907,10 +907,10 @@ sub admin_grid {
             my $status = $row->{status} || 2;
             
             if($status eq 1){
-                $status = bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' );
+                $status = bless( do{\(my $o = 1)}, 'JSON::XS::Boolean' );
             }
             else{
-                $status = bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' );
+                $status = bless( do{\(my $o = 0)}, 'JSON::XS::Boolean' );
             }
 
             push @$result_array, { id             => $row->{id}, 
@@ -1080,10 +1080,10 @@ sub column_grid {
         my $status = $row->{status} || 2;
         
         if($status eq 1){
-            $status = bless( do{\(my $o = 1)}, 'JSON::PP::Boolean' );
+            $status = bless( do{\(my $o = 1)}, 'JSON::XS::Boolean' );
         }
         else{
-            $status = bless( do{\(my $o = 0)}, 'JSON::PP::Boolean' );
+            $status = bless( do{\(my $o = 0)}, 'JSON::XS::Boolean' );
         }
 
         push @$result_array, { id          => $row->{id}, 

@@ -1026,6 +1026,11 @@ sub modify_admin {
         $sth->{4}->finish;
 
         if($status ne $sql_result_4->{status}){
+
+            if($status != 2){
+                $status = 1;
+            }
+
             $sql->{5} = qq(update $table set $status_column = ? where $table_id = ?);
             $sth->{5} = $dbh->prepare($sql->{5}) or error("Error in sth_5");
             $sth->{5}->execute($status,$id) or error("Error in sth_5");
@@ -1379,6 +1384,11 @@ sub column_admin {
 
             ## Status
             if($sql_1_result->{status} ne $status){
+
+                if($status != 2){
+                    $status = 1;
+                }
+
                 $sql->{2} = qq(update db_column set status_to_db_column_id = ? where db_column_id = ?);
                 $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
                 $sth->{2}->execute($status,$sub_hash->{id}) or error("Error in sth_2 execute");

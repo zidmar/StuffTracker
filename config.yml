@@ -1,49 +1,20 @@
-# This is the main configuration file of your Dancer2 app
-# env-related settings should go to environments/$env.yml
-# all the settings in this file will be loaded at Dancer's startup.
 
-# Your application's name
+## Application Name and Title
+
 appname: "StuffTracker"
 program_title: "Stuff Tracker"
 
-###
 ## Database Info
-###
-
-## Database to use in program 
-#
-# Supported databases
-#
-# - Use "Pg" for PostgreSQL databases
-# - Use "mysql" for MySQL/MariaDB databases
-# - Use "SQLite" for SQLite databases
-
-dbi_to_use: "SQLite"
-
-## Database Name/File
-#
-# For PostgreSQL or MySQL/MariaDB databases, state database
-# For SQLite, state filename
 
 db: "/home/starman/db/StuffTracker.db"
 
-## Database Username/Password
-#
-# Used in PostgreSQL and MySQL/MariaDB.
+## Authentication Database Info
 
-db_username: "stuff_tracker"
-db_password: "stuff_tracker"
+db_auth: "/home/starman/db/UserManager.db"
 
-## Database host
+###############################################################################
 
-db_host: "127.0.0.1"
-
-## Database port
-#
-# - "5432" is default for PostgreSQL
-# - "3306" is default for MySQL/MariaDB
-
-db_port: "5432"
+dbi_to_use: "SQLite"
 
 # The default layout to use for your application (located in
 # views/layouts/main.tt)

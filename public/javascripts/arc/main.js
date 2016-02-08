@@ -73,6 +73,7 @@ define([
     var main_uri      = domAttr.get(dom.byId("main_uri"),"value");
     var static_uri    = domAttr.get(dom.byId("static_uri"),"value");
     var session_user  = domAttr.get(dom.byId("session_user"),"value");
+    var session_admin = domAttr.get(dom.byId("session_admin"),"value");
     var program_title = domAttr.get(dom.byId("program_title"),"value");
 
     ////
@@ -180,15 +181,19 @@ define([
             innerHTML:"Settings",
             "class":"headerLink",
             //style:{ cursor: "pointer"},
-            style:{cursor:"pointer",padding:"0 6px 0 0"},
+            style:{cursor:"pointer",padding:"0 6px 0 0",borderRight:"1px dotted silver"},
             click: function(evt){
 
                 if(!registry.byId('dialog_admin_add_textbox_0')){
-                    createAdminDialog(); 
-                    registry.byId('dialog_admin').show();
+                    if(session_admin == 1){
+                        createAdminDialog(); 
+                        registry.byId('dialog_admin').show();
+                    }
                 }
                 else{
-                   registry.byId('dialog_admin').show();
+                    if(session_admin == 1){
+                        registry.byId('dialog_admin').show();
+                    }
                 }
             }
         };
@@ -198,7 +203,7 @@ define([
             innerHTML:"Advanced Filter",
             "class":"headerLink",
             //style:{ cursor: "pointer",marginRight:"5px" },
-            style:{cursor:"pointer",padding:"0 6px 0 6px",borderLeft:"1px dotted silver",marginRight:"5px"},
+            style:{cursor:"pointer",padding:"0 6px 0 6px",marginRight:"5px"},
             click: function(evt){
 
                 // Show Dialog
@@ -296,14 +301,16 @@ define([
         tp["6"]  = domConstruct.create('span', {style:{paddingLeft:"6px",borderLeft:"1px dotted silver"},innerHTML:header_title},tp["5"]);
         tp["7"]  = domConstruct.create('td', {style:{width:"200px",verticalAlign:"middle"}},tp["2"]);
         tp["8"]  = domConstruct.create('span',header_home_link,tp["7"]);
-        tp["9"] = domConstruct.create('span',header_refresh_link,tp["7"]);
+        tp["9"]  = domConstruct.create('span',header_refresh_link,tp["7"]);
         tp["10"] = domConstruct.create('span',header_export_link,tp["7"]);
 
-        tp["11"]  = domConstruct.create('td', {style:{width:"200px",textAlign:"center",verticalAlign:"middle"}},tp["2"]);
+        tp["11"] = domConstruct.create('td', {style:{width:"200px",textAlign:"center",verticalAlign:"middle"}},tp["2"]);
         tp["12"] = domConstruct.create('span',header_add_link,tp["11"]);
 
         tp["13"] = domConstruct.create('td', {style:{textAlign:"right",verticalAlign:"middle"}},tp["2"]);
-        tp["14"] = domConstruct.create('span',header_admin_link,tp["13"]);
+        if(session_admin == 1){
+            tp["14"] = domConstruct.create('span',header_admin_link,tp["13"]);
+        }
         tp["15"] = domConstruct.create('span',header_filter_link,tp["13"]);
         header_search_textbox.placeAt(tp["13"]);
         tp["16"] = domConstruct.create('span', {innerHTML:"&nbsp;&nbsp;"},tp["13"]);
@@ -326,7 +333,6 @@ define([
         preventCache: false
     })
 
-    //createServiceTab({store:stuff_tracker_store,query:{}});
     createServiceTab({store:stuff_tracker_store_cache,query:{}});
 
     new Dialog({ id:'dialog_add',    title: "New Entry" });
@@ -359,6 +365,11 @@ define([
 
                 if(type == "varchar"){
                     new TextBox({ id: id, name: id, placeHolder: "Add "+nameC });
+                }
+                if(type == "integer"){
+                    if(res[i].protected != 1){
+                        new NumberSpinner({ id: id, name: id, placeHolder: "Add "+nameC, constraints: {min:1, places:0} });
+                    }
                 }
                 if(type == "select"){
 
@@ -396,23 +407,24 @@ define([
                     var element_object = new Object();
 
                     for (var i in res){
+                        if(res[i].protected != 1){
+                            var id    = "dialog_add_form_object_"+i;
+                            var name  = res[i].name;
+                            var type  = res[i].type;
+                            var value = registry.byId(id).get("value");
 
-                        var id    = "dialog_add_form_object_"+i;
-                        var name  = res[i].name;
-                        var type  = res[i].type;
-                        var value = registry.byId(id).get("value");
+                            if(type == "date"){
+                                if(registry.byId(id).get("value")){
+                                    value = common.format_date(registry.byId(id).get("value"));
+                                }
+                            } 
 
-                        if(type == "date"){
-                            if(registry.byId(id).get("value")){
-                                value = common.format_date(registry.byId(id).get("value"));
-                            }
-                        } 
-
-                        element_object[i] = document.createElement("input");
-                        element_object[i].setAttribute("type", "hidden");
-                        element_object[i].setAttribute("name", name);
-                        element_object[i].setAttribute("value", value );
-                        form.appendChild(element_object[i]);
+                            element_object[i] = document.createElement("input");
+                            element_object[i].setAttribute("type", "hidden");
+                            element_object[i].setAttribute("name", name);
+                            element_object[i].setAttribute("value", value );
+                            form.appendChild(element_object[i]);
+                        }
                     }
                     
                     xhr.post(main_uri+"/add", {
@@ -475,13 +487,16 @@ define([
 
             for (var i in res){
 
-                var nameC = formatString(res[i].name);
+                  if(res[i].protected != 1){
 
-                required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
-                required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
-                domConstruct.create('span', {innerHTML:nameC+":"},required_object[i+"a"]);
-                required_object[i+"b"] = domConstruct.create('td', {style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
-                registry.byId("dialog_add_form_object_"+i).placeAt(required_object[i+"b"]);
+                    var nameC = formatString(res[i].name);
+
+                    required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
+                    required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
+                    domConstruct.create('span', {innerHTML:nameC+":"},required_object[i+"a"]);
+                    required_object[i+"b"] = domConstruct.create('td', {style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
+                    registry.byId("dialog_add_form_object_"+i).placeAt(required_object[i+"b"]);
+                }
             }
 
             cp_object["4"] = domConstruct.create('tr', {},cp_object["1"]);
@@ -509,7 +524,9 @@ define([
                 var type = res[i].type;
 
                 if( (type == "varchar") || (type == "integer") || (type == "date") ){
-                    registry.byId(id).set("value",null);
+                    if(res[i].protected != 1){
+                        registry.byId(id).set("value",null);
+                    }
                 }
                 if(type == "select"){
                     registry.byId(id).set("displayedValue",null);
@@ -531,6 +548,11 @@ define([
 
                 if(type == "varchar"){
                     new TextBox({ id: id, name: id, placeHolder: "Add "+nameC });
+                }
+                if(type == "integer"){
+                    if(res[i].protected != 1){
+                        new NumberSpinner({ id: id, name: id, placeHolder: "Add "+nameC, constraints: {min:1, places:0} });
+                    }
                 }
                 if(type == "select"){
 
@@ -637,13 +659,16 @@ define([
 
             for (var i in res){
 
-                var nameC = formatString(res[i].name);
+                  if(res[i].protected != 1){
 
-                required_object[i] = domConstruct.create('tr', {},t1_object["1"]);
-                required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
-                domConstruct.create('span', {innerHTML:nameC+":"},required_object[i+"a"]);
-                required_object[i+"b"] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
-                registry.byId("dialog_modify_form_object_"+fn_object.rid+"_"+i).placeAt(required_object[i+"b"]);
+                    var nameC = formatString(res[i].name);
+
+                    required_object[i] = domConstruct.create('tr', {},t1_object["1"]);
+                    required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
+                    domConstruct.create('span', {innerHTML:nameC+":"},required_object[i+"a"]);
+                    required_object[i+"b"] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
+                    registry.byId("dialog_modify_form_object_"+fn_object.rid+"_"+i).placeAt(required_object[i+"b"]);
+                }
             }
 
             t1_object["5"] = domConstruct.create('tr', {},t1_object["1"]);
@@ -764,8 +789,10 @@ define([
                     var id    = "dialog_modify_form_object_"+fn_object.rid+"_"+i;
                     var type  = res[i].type;
 
-                    if( (type == "varchar") || (type == "date") ){
-                        registry.byId(id).set("value",json_obj[res[i].name]);
+                    if( (type == "varchar") || (type == "date") || (type == "integer") ){
+                        if(res[i].protected != 1){
+                            registry.byId(id).set("value",json_obj[res[i].name]);
+                        }
                     }
                     if(type == "select"){
                         registry.byId(id).set("displayedValue",json_obj[res[i].name]);
@@ -792,6 +819,11 @@ define([
 
                 if(type == "varchar"){
                     new TextBox({id:id,name:id,placeHolder:"Filter by "+nameC,disabled:true });
+                }
+                if(type == "integer"){
+                    if(res[i].protected != 1){
+                        new NumberSpinner({ id: id, name: id, placeHolder: "Filter by "+nameC, constraints: {min:1, places:0} });
+                    }
                 }
                 if(type == "select"){
 
@@ -833,6 +865,54 @@ define([
                 });
             }
 
+            // Integrated By
+            new FilteringSelect({ 
+                id: "dialog_filter_form_object_integrated_by", 
+                name: "dialog_filter_form_object_integrated_by", 
+                value: "", 
+                required: false, 
+                placeHolder: "Filter by Integrator",
+                store: JsonRest({target:main_uri+"/filtering_select/integrated_by/"}),
+                disabled: true
+            });
+
+            new CheckBox({ 
+                id: "dialog_filter_form_object_integrated_by_c", 
+                name: "dialog_filter_form_object_integrated_by_c", 
+                onChange: function(b){
+                    if(b){
+                        registry.byId("dialog_filter_form_object_integrated_by").set("disabled", false);
+                    }
+                    else{
+                        registry.byId("dialog_filter_form_object_integrated_by").set("disabled", true);
+                    }
+                }
+            });
+
+            // Updated By
+            new FilteringSelect({ 
+                id: "dialog_filter_form_object_updated_by", 
+                name: "dialog_filter_form_object_updated_by", 
+                value: "", 
+                required: false, 
+                placeHolder: "Filter by Updater",
+                store: JsonRest({target:main_uri+"/filtering_select/updated_by/"}),
+                disabled: true
+            });
+
+            new CheckBox({ 
+                id: "dialog_filter_form_object_updated_by_c", 
+                name: "dialog_filter_form_object_updated_by_c", 
+                onChange: function(b){
+                    if(b){
+                        registry.byId("dialog_filter_form_object_updated_by").set("disabled", false);
+                    }
+                    else{
+                        registry.byId("dialog_filter_form_object_updated_by").set("disabled", true);
+                    }
+                }
+            });
+
             var dialog_filter_button1 = new Button({
                 id: "dialog_filter_button1",
                 label: "Filter",
@@ -865,7 +945,9 @@ define([
                                     }
                                 }
                                 else{
-                                    query[ res[i].name ] = registry.byId(id).get("value");
+                                    if(res[i].protected != 1){
+                                        query[ res[i].name ] = registry.byId(id).get("value");
+                                    }
                                 }
                             }
                         }
@@ -898,29 +980,55 @@ define([
             var required_object = new Object();
 
             for (var i in res){
+                if(res[i].protected != 1){
 
-                var nameC = formatString(res[i].name);
+                    var nameC = formatString(res[i].name);
 
-                required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
-                required_object["a"+i] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px"}},required_object[i]);
-                registry.byId("dialog_filter_form_object_c"+i).placeAt(required_object["a"+i]);
+                    required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
+                    required_object["a"+i] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px"}},required_object[i]);
+                    registry.byId("dialog_filter_form_object_c"+i).placeAt(required_object["a"+i]);
 
-                required_object["b"+i] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
-                domConstruct.create('span', {innerHTML:nameC+":"},required_object["b"+i]);
+                    required_object["b"+i] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
+                    domConstruct.create('span', {innerHTML:nameC+":"},required_object["b"+i]);
 
-                required_object["c"+i] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
-                registry.byId("dialog_filter_form_object_"+i).placeAt(required_object["c"+i]);
+                    required_object["c"+i] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object[i]);
+                    registry.byId("dialog_filter_form_object_"+i).placeAt(required_object["c"+i]);
 
-                if(registry.byId("dialog_filter_form_object_end"+i)){
-                    domConstruct.create('div', {style:{padding:"1px"}},required_object["c"+i]);
-                    registry.byId("dialog_filter_form_object_end"+i).placeAt(required_object["c"+i]);
-                    domConstruct.create('div', {style:{padding:"1px"}},required_object["c"+i]);
+                    if(registry.byId("dialog_filter_form_object_end"+i)){
+                        domConstruct.create('div', {style:{padding:"1px"}},required_object["c"+i]);
+                        registry.byId("dialog_filter_form_object_end"+i).placeAt(required_object["c"+i]);
+                        domConstruct.create('div', {style:{padding:"1px"}},required_object["c"+i]);
+                    }
                 }
             }
 
+            required_object["integrated_by_1"] = domConstruct.create('tr', {},cp_object["1"]);
+            required_object["integrated_by_2"] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px"}},required_object["integrated_by_1"]);
+            registry.byId("dialog_filter_form_object_integrated_by_c").placeAt(required_object["integrated_by_2"]);
+
+            required_object["integrated_by_3"] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object["integrated_by_1"]);
+            domConstruct.create('span', {innerHTML:"Integrated By:"},required_object["integrated_by_3"]);
+
+            required_object["integrated_by_4"] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object["integrated_by_1"]);
+            registry.byId("dialog_filter_form_object_integrated_by").placeAt(required_object["integrated_by_4"]);
+
+            required_object["updated_by_1"] = domConstruct.create('tr', {},cp_object["1"]);
+            required_object["updated_by_2"] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px"}},required_object["updated_by_1"]);
+            registry.byId("dialog_filter_form_object_updated_by_c").placeAt(required_object["updated_by_2"]);
+
+            required_object["updated_by_3"] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object["updated_by_1"]);
+            domConstruct.create('span', {innerHTML:"Updated By:"},required_object["updated_by_3"]);
+
+            required_object["updated_by_4"] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},required_object["updated_by_1"]);
+            registry.byId("dialog_filter_form_object_updated_by").placeAt(required_object["updated_by_4"]);
+
             cp_object["5"] = domConstruct.create('tr', {},cp_object["1"]);
             cp_object["6"] = domConstruct.create('td', {colSpan:'3',style:{textAlign:"center"}},cp_object["5"]);
-            dialog_filter_button1.placeAt(cp_object["6"]);
+            domConstruct.create('hr', {"class":"style-six"},cp_object["6"]);
+
+            cp_object["7"] = domConstruct.create('tr', {},cp_object["1"]);
+            cp_object["8"] = domConstruct.create('td', {colSpan:'3',style:{textAlign:"center"}},cp_object["7"]);
+            dialog_filter_button1.placeAt(cp_object["8"]);
 
             registry.byId("dialog_filter").set("content",content_pane);
         });
@@ -967,7 +1075,16 @@ define([
                      editorArgs: { props:'constraints: { min:1, places:0 }'}
                     },
                     //{name:"Description", field:"description", width: "148px", editable: true, editor: myValidationTextBox}
-                    {name:"Description", field:"description", width: "148px", editable: true, editor: common.validation_textbox}
+                    {name:"Description", field:"_item", width: "148px", editable: true, editor: common.validation_textbox,
+                        formatter: function(item){
+                            if(item.protected == 1){
+                                return "<font color='gray'><i>"+item.description+" (protected)</i></font>";
+                            }
+                            else{
+                                return item.description;
+                            }
+                        }
+                    }
                     );
                 }
                 else{
@@ -987,6 +1104,15 @@ define([
                         "gridx/modules/SingleSort"
                     ],
                     editLazySave: true
+                });
+
+                grid.edit.connect(grid.edit, "onBegin", function(cell, success) {
+                    if(cell.data() == "integrated_by"){
+                        cell.cancelEdit();
+                    }
+                    if(cell.data() == "updated_by"){
+                        cell.cancelEdit();
+                    }
                 });
 
                 // Tooltip Dialog
@@ -1244,6 +1370,17 @@ define([
                 if(res[i].type == "varchar"){
                     grid_layout.splice(order,0,{ name: nameC, field: res[i].name, width: size, style: "text-align:center;", editable: true });
                 }
+                if(res[i].type == "integer"){
+                    if(res[i].name == "integrated_by"){
+                        grid_layout.splice(order,0,{ name: nameC, field: "integrated_by_name", width: size, style: "text-align:center;", editable: false });
+                    }
+                    else if(res[i].name == "updated_by"){
+                        grid_layout.splice(order,0,{ name: nameC, field: "updated_by_name", width: size, style: "text-align:center;", editable: false });
+                    }
+                    else{ 
+                        grid_layout.splice(order,0,{ name: nameC, field: res[i].name, width: size, style: "text-align:center;", editable: true });
+                    }
+                }
                 if(res[i].type == "date"){
                     grid_layout.splice(order,0,{ 
                         name: nameC, field: res[i].name, width: size, style: "text-align:center;", editable: true, 
@@ -1272,7 +1409,7 @@ define([
                 select_store_cache = new dojoCache(select_store,memory_store);   
                 //console.log(select_store);
             }
-            
+
             // Grid
             
             var service_grid  = new Grid({ 
@@ -1315,7 +1452,7 @@ define([
             });
 
             service_grid.edit.connect(service_grid.edit, "onApply", function(cell, success) {
-
+                console.log(cell);
                 var check_if_dirty = service_grid.model.getChanged();
                                 
                 if(check_if_dirty.length > 0){

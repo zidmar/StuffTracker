@@ -1,4 +1,3 @@
-        <!-- JavaScript -->
         
         <script>
                 var dojoConfig = {
@@ -11,19 +10,16 @@
                                 'arc',
                                 'dijit',
                                 'dojo',
-                                'dojox',
-                                'gridx'
+                                'dojox'
                         ],
                         tlmSiblingOfDojo: false
                 };
         </script>
 
         <script src='<%static_uri%>javascripts/dojo/dojo.js'></script>
-        <script>require([ 'arc/main' ]);</script>
+        <script>require([ 'arc/login' ]);</script>
         <form>
             <input type="hidden" name="static_uri" id="static_uri" value="<%static_uri%>"></input>
             <input type="hidden" name="main_uri" id="main_uri" value="<%main_uri%>"></input>
-            <input type="hidden" name="session_user" id="session_user" value="<%session_user%>"></input>
-            <input type="hidden" name="session_admin" id="session_admin" value="<%session_admin%>"></input>
-            <input type="hidden" name="program_title" id="program_title" value="<% settings.program_title %>"></input>
+            <input type="hidden" name="err" id="err" value="<%err%>"></input>
         </form>

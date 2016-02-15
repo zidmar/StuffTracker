@@ -2,12 +2,20 @@
 
 **Stuff Tracker** is a project that helps small groups to keep track of "stuff" in a central location, instead of using spreadsheets.
 
+
+---
+
+##### Due to a recent changes, **StuffTracker** now depends on [UserManager](https://github.com/zidmar/UserManager). Please install and configure [UserManager](https://github.com/zidmar/UserManager) before using **StuffTracker**.
+
+---
+
+
 ### Installation instructions for Debian:
 
 1.) Install necessary packages as the root user
 
 ```sh
-apt-get install git sqlite3 libdancer2-perl libdbi-perl libdbd-sqlite3-perl 
+apt-get install git sqlite3 libdancer2-perl libdbi-perl libdbd-sqlite3-perl libjson-xs-perl 
 ```
 
 2.) Create the **starman** user where programs will reside

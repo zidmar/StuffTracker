@@ -91,7 +91,7 @@ define([
     var memory_store_98       = new Memory();
     stuff_tracker_store_cache = new dojoCache(stuff_tracker_store,memory_store_98);   
 
-    var column_store        = JsonRest({target:main_uri+"/column_grid/"});
+    var column_store          = JsonRest({target:main_uri+"/column_grid/"});
 
     var column_type_store_select   = JsonRest({target:main_uri+"/filtering_select/column_type/"});
     var memory_store_99            = new Memory();
@@ -104,7 +104,6 @@ define([
     arc.site_layout = new function(){
 
         var header_logo  = static_uri+"images/color_swatch.png";
-        //var header_title = "Stuff Tracker";
         var header_title = program_title;
 
         var header_home_link = {
@@ -121,11 +120,10 @@ define([
             id:"header_add",
             innerHTML:"Add Entry",
             "class":"headerLink",
-            //style:{cursor:"pointer",padding:"0 6px 0 6px",borderLeft:"1px dotted silver"},
             style:{cursor:"pointer",padding:"0 6px 0 6px"},
             click: function(evt){
 
-                if(!registry.byId('dialog_add_form_object_0')){
+                if(!registry.byId('dialog_add_progress')){
 
                     createAddDialog(); 
                     clearAddForm();
@@ -180,7 +178,6 @@ define([
             id:"header_admin",
             innerHTML:"Settings",
             "class":"headerLink",
-            //style:{ cursor: "pointer"},
             style:{cursor:"pointer",padding:"0 6px 0 0",borderRight:"1px dotted silver"},
             click: function(evt){
 
@@ -202,20 +199,12 @@ define([
             id:"header_filter",
             innerHTML:"Advanced Filter",
             "class":"headerLink",
-            //style:{ cursor: "pointer",marginRight:"5px" },
             style:{cursor:"pointer",padding:"0 6px 0 6px",marginRight:"5px"},
             click: function(evt){
 
                 // Show Dialog
-
-                if(!registry.byId('dialog_filter_form_object_0')){
-                    createFilterDialog(); 
-                    registry.byId('dialog_filter').show();
-                }
-                else{
-                   registry.byId('dialog_filter').show();
-                }
-
+                createFilterDialog(); 
+                registry.byId('dialog_filter').show();
             }
         };
 
@@ -262,7 +251,6 @@ define([
                                 Filter.value(value)
                             )
                         );
-                        //setGridFilter('gridx_Grid_0',{query:value});
                         cache_store.put({ id:"filter", query: value });
 
                         registry.byId("header_search_button").set("label",'<img style="width:14px;height:14px" src="'+static_uri+'images/delete.png" title="Clear the Service table filter">');
@@ -361,37 +349,39 @@ define([
 
                 var id    = "dialog_add_form_object_"+i;
                 var type  = res[i].type;
-                var nameC = formatString(res[i].name);
+                var nameC = res[i].description;
 
-                if(type == "varchar"){
-                    new TextBox({ id: id, name: id, placeHolder: "Add "+nameC });
-                }
-                if(type == "integer"){
-                    if(res[i].protected != 1){
-                        new NumberSpinner({ id: id, name: id, placeHolder: "Add "+nameC, constraints: {min:1, places:0} });
+                if(!registry.byId('dialog_add_form_object_'+i)){
+
+                    if(type == "varchar"){
+                        new TextBox({ id: id, name: id, placeHolder: "Add "+nameC });
                     }
-                }
-                if(type == "select"){
+                    if(type == "integer"){
+                        if(res[i].protected != 1){
+                            new NumberSpinner({ id: id, name: id, placeHolder: "Add "+nameC, constraints: {min:1, places:0} });
+                        }
+                    }
+                    if(type == "select"){
 
-                    var url  = main_uri+"/filtering_select/"+res[i].id+"/";
+                        var url  = main_uri+"/filtering_select/"+res[i].id+"/";
 
-                    new FilteringSelect({ 
-                        id: id, 
-                        name: id, 
-                        value: "", 
-                        required: false, 
-                        placeHolder: "Select "+nameC,
-                        store: JsonRest({target:url})
-                    });
-                }
-                if(type == "date"){
-                    new DateTextBox({ id: id, name: id, placeHolder: "Add "+nameC });
+                        new FilteringSelect({ 
+                            id: id, 
+                            name: id, 
+                            value: "", 
+                            required: false, 
+                            placeHolder: "Select "+nameC,
+                            store: JsonRest({target:url})
+                        });
+                    }
+                    if(type == "date"){
+                        new DateTextBox({ id: id, name: id, placeHolder: "Add "+nameC });
+                    }
                 }
             }
 
             // Submit 
             var dialog_add_button1 = new Button({
-                id: "dialog_add_button1",
                 label: "Submit",
                 onClick: function(){
                     
@@ -456,7 +446,6 @@ define([
             });
 
             var dialog_add_button2 = new Button({
-                id: "dialog_add_button2",
                 label: "Clear",
                 onClick: function(){
                     clearAddForm();
@@ -489,7 +478,7 @@ define([
 
                   if(res[i].protected != 1){
 
-                    var nameC = formatString(res[i].name);
+                    var nameC = res[i].description;
 
                     required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
                     required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
@@ -544,7 +533,7 @@ define([
 
                 var id    = "dialog_modify_form_object_"+fn_object.rid+"_"+i;
                 var type  = res[i].type;
-                var nameC = formatString(res[i].name);
+                var nameC = res[i].description;
 
                 if(type == "varchar"){
                     new TextBox({ id: id, name: id, placeHolder: "Add "+nameC });
@@ -584,31 +573,34 @@ define([
 
                     for (var i in res){
 
-                        var id   = "dialog_modify_form_object_"+fn_object.rid+"_"+i;
-                        var type = res[i].type;
+                        if(res[i].protected != 1){
 
-                        var form_object_text = new Object();
-                        form_object_text[ res[i].name ] = registry.byId(id).get("value");
+                            var id   = "dialog_modify_form_object_"+fn_object.rid+"_"+i;
+                            var type = res[i].type;
 
-                        var form_object_select = new Object();
-                        form_object_select[ res[i].name+"_id" ] = registry.byId(id).get("value");
-                        form_object_select[ res[i].name ]       = registry.byId(id).get("displayedValue");
+                            var form_object_text = new Object();
+                            form_object_text[ res[i].name ] = registry.byId(id).get("value");
 
-                        if(type == "varchar"){
-                            if(registry.byId(id).get("value")){
-                                current_grid.model.set(fn_object.rid,form_object_text);
+                            var form_object_select = new Object();
+                            form_object_select[ res[i].name+"_id" ] = registry.byId(id).get("value");
+                            form_object_select[ res[i].name ]       = registry.byId(id).get("displayedValue");
+
+                            if(type == "varchar"){
+                                if(registry.byId(id).get("value")){
+                                    current_grid.model.set(fn_object.rid,form_object_text);
+                                }
                             }
-                        }
-                        if(type == "date"){
-                            if(registry.byId(id).get("value")){
-                                var form_object_date = new Object();
-                                form_object_date[ res[i].name ] = common.format_date(registry.byId(id).get("value"));
-                                current_grid.model.set(fn_object.rid,form_object_date);
+                            if(type == "date"){
+                                if(registry.byId(id).get("value")){
+                                    var form_object_date = new Object();
+                                    form_object_date[ res[i].name ] = common.format_date(registry.byId(id).get("value"));
+                                    current_grid.model.set(fn_object.rid,form_object_date);
+                                }
                             }
-                        }
-                        if(type == "select"){
-                            if(registry.byId(id).get("value")){
-                                current_grid.model.set(fn_object.rid,form_object_select);
+                            if(type == "select"){
+                                if(registry.byId(id).get("value")){
+                                    current_grid.model.set(fn_object.rid,form_object_select);
+                                }
                             }
                         }
                     }
@@ -661,7 +653,7 @@ define([
 
                   if(res[i].protected != 1){
 
-                    var nameC = formatString(res[i].name);
+                    var nameC = res[i].description;
 
                     required_object[i] = domConstruct.create('tr', {},t1_object["1"]);
                     required_object[i+"a"] =domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},required_object[i]);
@@ -815,106 +807,114 @@ define([
                 var id    = "dialog_filter_form_object_"+i;
                 var cid   = "dialog_filter_form_object_c"+i;
                 var type  = res[i].type;
-                var nameC = formatString(res[i].name);
+                var nameC = res[i].description;
 
-                if(type == "varchar"){
-                    new TextBox({id:id,name:id,placeHolder:"Filter by "+nameC,disabled:true });
-                }
-                if(type == "integer"){
-                    if(res[i].protected != 1){
-                        new NumberSpinner({ id: id, name: id, placeHolder: "Filter by "+nameC, constraints: {min:1, places:0} });
+                if( (!registry.byId('dialog_filter_form_object_'+i)) && (!registry.byId('dialog_filter_form_object_c'+i)) ){
+
+                    if(type == "varchar"){
+                        new TextBox({id: id,name: id,placeHolder: "Filter by "+nameC,disabled: true });
                     }
-                }
-                if(type == "select"){
+                    if(type == "integer"){
+                        if(res[i].protected != 1){
+                            new NumberSpinner({ id: id, name: id, placeHolder: "Filter by "+nameC, disabled: true, constraints: {min:1, places:0} });
+                        }
+                    }
+                    if(type == "select"){
 
-                    var url  = main_uri+"/filtering_select/"+res[i].id+"/";
+                        var url  = main_uri+"/filtering_select/"+res[i].id+"/";
 
-                    new FilteringSelect({ 
-                        id: id, 
-                        name: id, 
-                        value: "", 
-                        required: false, 
-                        placeHolder: "Filter by "+nameC,
-                        store: JsonRest({target:url}),
-                        disabled: true
-                    });
-                }
-                if(type == "date"){
-                    new DateTextBox({id:id,name:id,placeHolder:nameC+" - Start",disabled:true});
-                    var eid  = "dialog_filter_form_object_end"+i;
-                    new DateTextBox({id:eid,name:eid,placeHolder:nameC+" - End",disabled:true});
-                }
-                new CheckBox({ 
-                    id: cid, 
-                    name: cid, 
-                    onChange: function(b){
-                        var order = this.id.replace("dialog_filter_form_object_c","")
-                        if(b){
-                            registry.byId("dialog_filter_form_object_"+order).set("disabled", false);
-                            if(registry.byId("dialog_filter_form_object_end"+order)){
-                                registry.byId("dialog_filter_form_object_end"+order).set("disabled", false);
+                        new FilteringSelect({ 
+                            id: id, 
+                            name: id, 
+                            value: "", 
+                            required: false, 
+                            placeHolder: "Filter by "+nameC,
+                            store: JsonRest({target:url}),
+                            disabled: true
+                        });
+                    }
+                    if(type == "date"){
+                        new DateTextBox({id:id,name:id,placeHolder:nameC+" - Start",disabled:true});
+                        var eid  = "dialog_filter_form_object_end"+i;
+                        new DateTextBox({id:eid,name:eid,placeHolder:nameC+" - End",disabled:true});
+                    }
+                    new CheckBox({ 
+                        id: cid, 
+                        name: cid, 
+                        onChange: function(b){
+                            var order = this.id.replace("dialog_filter_form_object_c","")
+                            if(b){
+                                registry.byId("dialog_filter_form_object_"+order).set("disabled", false);
+                                if(registry.byId("dialog_filter_form_object_end"+order)){
+                                    registry.byId("dialog_filter_form_object_end"+order).set("disabled", false);
+                                }
+                            }
+                            else{
+                                registry.byId("dialog_filter_form_object_"+order).set("disabled", true);
+                                if(registry.byId("dialog_filter_form_object_end"+order)){
+                                    registry.byId("dialog_filter_form_object_end"+order).set("disabled", true);
+                                }
                             }
                         }
+                    });
+                }
+            }
+           
+            // Integrated By
+            if(!registry.byId('dialog_filter_form_object_integrated_by')){
+
+                new FilteringSelect({ 
+                    id: "dialog_filter_form_object_integrated_by", 
+                    name: "dialog_filter_form_object_integrated_by", 
+                    value: "", 
+                    required: false, 
+                    placeHolder: "Filter by Integrator",
+                    store: JsonRest({target:main_uri+"/filtering_select/integrated_by/"}),
+                    disabled: true
+                });
+
+                new CheckBox({ 
+                    id: "dialog_filter_form_object_integrated_by_c", 
+                    name: "dialog_filter_form_object_integrated_by_c", 
+                    onChange: function(b){
+                        if(b){
+                            registry.byId("dialog_filter_form_object_integrated_by").set("disabled", false);
+                        }
                         else{
-                            registry.byId("dialog_filter_form_object_"+order).set("disabled", true);
-                            if(registry.byId("dialog_filter_form_object_end"+order)){
-                                registry.byId("dialog_filter_form_object_end"+order).set("disabled", true);
-                            }
+                            registry.byId("dialog_filter_form_object_integrated_by").set("disabled", true);
                         }
                     }
                 });
             }
 
-            // Integrated By
-            new FilteringSelect({ 
-                id: "dialog_filter_form_object_integrated_by", 
-                name: "dialog_filter_form_object_integrated_by", 
-                value: "", 
-                required: false, 
-                placeHolder: "Filter by Integrator",
-                store: JsonRest({target:main_uri+"/filtering_select/integrated_by/"}),
-                disabled: true
-            });
-
-            new CheckBox({ 
-                id: "dialog_filter_form_object_integrated_by_c", 
-                name: "dialog_filter_form_object_integrated_by_c", 
-                onChange: function(b){
-                    if(b){
-                        registry.byId("dialog_filter_form_object_integrated_by").set("disabled", false);
-                    }
-                    else{
-                        registry.byId("dialog_filter_form_object_integrated_by").set("disabled", true);
-                    }
-                }
-            });
-
             // Updated By
-            new FilteringSelect({ 
-                id: "dialog_filter_form_object_updated_by", 
-                name: "dialog_filter_form_object_updated_by", 
-                value: "", 
-                required: false, 
-                placeHolder: "Filter by Updater",
-                store: JsonRest({target:main_uri+"/filtering_select/updated_by/"}),
-                disabled: true
-            });
+            if(!registry.byId('dialog_filter_form_object_updated_by')){
 
-            new CheckBox({ 
-                id: "dialog_filter_form_object_updated_by_c", 
-                name: "dialog_filter_form_object_updated_by_c", 
-                onChange: function(b){
-                    if(b){
-                        registry.byId("dialog_filter_form_object_updated_by").set("disabled", false);
+                new FilteringSelect({ 
+                    id: "dialog_filter_form_object_updated_by", 
+                    name: "dialog_filter_form_object_updated_by", 
+                    value: "", 
+                    required: false, 
+                    placeHolder: "Filter by Updater",
+                    store: JsonRest({target:main_uri+"/filtering_select/updated_by/"}),
+                    disabled: true
+                });
+
+                new CheckBox({ 
+                    id: "dialog_filter_form_object_updated_by_c", 
+                    name: "dialog_filter_form_object_updated_by_c", 
+                    onChange: function(b){
+                        if(b){
+                            registry.byId("dialog_filter_form_object_updated_by").set("disabled", false);
+                        }
+                        else{
+                            registry.byId("dialog_filter_form_object_updated_by").set("disabled", true);
+                        }
                     }
-                    else{
-                        registry.byId("dialog_filter_form_object_updated_by").set("disabled", true);
-                    }
-                }
-            });
+                });
+            }
 
             var dialog_filter_button1 = new Button({
-                id: "dialog_filter_button1",
                 label: "Filter",
                 onClick: function(){
 
@@ -953,6 +953,16 @@ define([
                         }
                     }
 
+                    // Integrated By
+                    if(registry.byId("dialog_filter_form_object_integrated_by_c").get("checked") == true){
+                        query[ "integrated_by" ] = registry.byId("dialog_filter_form_object_integrated_by").get("value");
+                    }
+
+                    // Updated By
+                    if(registry.byId("dialog_filter_form_object_updated_by_c").get("checked") == true){
+                        query[ "updated_by" ] = registry.byId("dialog_filter_form_object_updated_by").get("value");
+                    }
+
                     registry.byId('gridx_Grid_0').filter.setFilter( 
                         Filter.contain(
                             Filter.column('advanced_search'),
@@ -960,6 +970,38 @@ define([
                         ) 
                     );
                     cache_store.put({ id:"filter", query: query });
+                }
+            });
+
+            var dialog_filter_button2 = new Button({
+                label: "Clear",
+                onClick: function(){
+
+                    cache_store.remove("filter");
+                    setGridFilter('gridx_Grid_0',{});
+
+                    for (var i in res){
+
+                        var id    = "dialog_filter_form_object_"+i;
+                        var cid   = "dialog_filter_form_object_c"+i;
+                        var type  = res[i].type;
+
+                        registry.byId(cid).set("checked",false);
+
+
+                        if( (type == "varchar") || (type == "integer") || (type == "date") ){
+                            if(res[i].protected != 1){
+                                registry.byId(id).set("value",null);
+                            }
+                        }
+                        if(type == "select"){
+                            registry.byId(id).set("displayedValue",null);
+                        }
+                    }
+                    registry.byId("dialog_filter_form_object_integrated_by_c").set("checked",false);
+                    registry.byId("dialog_filter_form_object_integrated_by").set("value",null);
+                    registry.byId("dialog_filter_form_object_updated_by_c").set("checked",false);
+                    registry.byId("dialog_filter_form_object_updated_by").set("value",null);
                 }
             });
 
@@ -982,7 +1024,7 @@ define([
             for (var i in res){
                 if(res[i].protected != 1){
 
-                    var nameC = formatString(res[i].name);
+                    var nameC = res[i].description;
 
                     required_object[i] = domConstruct.create('tr', {},cp_object["1"]);
                     required_object["a"+i] = domConstruct.create('td', {style:{textAlign:"right",padding:"5px"}},required_object[i]);
@@ -1029,6 +1071,7 @@ define([
             cp_object["7"] = domConstruct.create('tr', {},cp_object["1"]);
             cp_object["8"] = domConstruct.create('td', {colSpan:'3',style:{textAlign:"center"}},cp_object["7"]);
             dialog_filter_button1.placeAt(cp_object["8"]);
+            dialog_filter_button2.placeAt(cp_object["8"]);
 
             registry.byId("dialog_filter").set("content",content_pane);
         });
@@ -1052,39 +1095,29 @@ define([
                 if(fn_object.column_admin == 1){
 
                     grid_layout.push(
-                    {
-                        name:"Type", field:"type", width: "60px", style: "text-align:center;", editable: false,
-                        editor: FilteringSelect,
-                        editorArgs: {
-                            props: 'store: column_type_store_select_cache',
-                            fromEditor: function(valueInEditor, cell){
-                                var obj = memory_store_99.get(valueInEditor);
-                                return obj.name;
-                            },
-                            toEditor: function(storeData, gridData, cell, editor){
-                                return 1;
+                        {
+                            name:"Type", field:"type", width: "60px", style: "text-align:center;color:gray;font-style:italic", editable: false,
+                            editor: FilteringSelect,
+                            editorArgs: {
+                                props: 'store: column_type_store_select_cache',
+                                fromEditor: function(valueInEditor, cell){
+                                    var obj = memory_store_99.get(valueInEditor);
+                                    return obj.name;
+                                },
+                                toEditor: function(storeData, gridData, cell, editor){
+                                    return 1;
+                                }
                             }
-                        }
-                    },
-                    {name:"Size (px)", field:"size", width: "50px", style: "text-align:center;", editable: true, 
-                     editor: NumberSpinner,
-                     editorArgs: { props:'smallDelta: 10, constraints: { min:100, max:600, places:0 }'}
-                    },
-                    {name:"Order", field:"order", width: "50px", style: "text-align:center;", editable: true, 
-                     editor: NumberSpinner,
-                     editorArgs: { props:'constraints: { min:1, places:0 }'}
-                    },
-                    //{name:"Description", field:"description", width: "148px", editable: true, editor: myValidationTextBox}
-                    {name:"Description", field:"_item", width: "148px", editable: true, editor: common.validation_textbox,
-                        formatter: function(item){
-                            if(item.protected == 1){
-                                return "<font color='gray'><i>"+item.description+" (protected)</i></font>";
-                            }
-                            else{
-                                return item.description;
-                            }
-                        }
-                    }
+                        },
+                        {name:"Size (px)", field:"size", width: "50px", style: "text-align:center;", editable: true, 
+                         editor: NumberSpinner,
+                         editorArgs: { props:'smallDelta: 10, constraints: { min:100, max:600, places:0 }'}
+                        },
+                        {name:"Order", field:"order", width: "50px", style: "text-align:center;", editable: true, 
+                         editor: NumberSpinner,
+                         editorArgs: { props:'constraints: { min:1, places:0 }'}
+                        },
+                        {name:"Description", field:"description", width: "auto", editable: true}
                     );
                 }
                 else{
@@ -1106,51 +1139,34 @@ define([
                     editLazySave: true
                 });
 
-                grid.edit.connect(grid.edit, "onBegin", function(cell, success) {
-                    if(cell.data() == "integrated_by"){
-                        cell.cancelEdit();
-                    }
-                    if(cell.data() == "updated_by"){
-                        cell.cancelEdit();
-                    }
+                var fe = new Object();
+
+                fe["0"] = new TextBox({ 
+                    id: "dialog_admin_add_textbox_"+fn_object.id, 
+                    name: "dialog_admin_add_textbox_"+fn_object.id, 
+                    placeHolder: "Add Description",
+                    maxlength: 100,
+                    style:"width:170px;margin-left:3px;margin-right:3px"
                 });
 
-                // Tooltip Dialog
-                
-                var ttd = new Object();
-
                 if(fn_object.column_admin == 1){
-                    ttd["0"] = new ValidationTextBox({ 
-                        id: "dialog_admin_add_textbox_"+fn_object.id, 
-                        name: "dialog_admin_add_textbox_"+fn_object.id, 
-                        placeHolder: "Add "+fn_object.name,
-                        maxlength: 64,
-                        regExp:'[\\w]+',
-                        //invalidMessage:'Invalid Non-Space Text.'
-                        invalidMessage:'Invalid character detected!<br>Use underscore ( _ ) instead of spaces.'
-                    });
-                }
-                else{
-                    ttd["0"] = new TextBox({ 
-                        id: "dialog_admin_add_textbox_"+fn_object.id, 
-                        name: "dialog_admin_add_textbox_"+fn_object.id, 
-                        placeHolder: "Add "+fn_object.name,
-                        maxlength: 100 
-                    });
+                    fe[0].set("maxlength",50);
+                    fe[0].set("style","width:130px;margin-right:3px");
                 }
 
-                ttd["1"] = new FilteringSelect({ 
+                fe["1"] = new FilteringSelect({ 
                     id: "dialog_admin_add_select_"+fn_object.id, 
                     name: "dialog_admin_add_select_"+fn_object.id, 
                     value: "", 
                     required: false, 
-                    placeHolder: "Select Column Type",
-                    store: column_type_store_select
+                    placeHolder: "Select Type",
+                    store: column_type_store_select,
+                    style:"width: 90px;margin-left:3px;margin-right:3px"
                 });
 
-                ttd["2"] = new Button({
+                fe["2"] = new Button({
                     id: "dialog_admin_add_button_"+fn_object.id,
-                    label: "Submit",
+                    label: "Add",
                     onClick: function(){
 
                         // Create a form to handle Grid Data
@@ -1165,6 +1181,13 @@ define([
                         element_1.setAttribute("value", fn_object.id);
                         form.appendChild(element_1);
 
+                        if(registry.byId("dialog_admin_add_textbox_"+fn_object.id).get("value") == ""){
+                            // Remove Form
+                            dojo.body().removeChild(form);
+                            alert("Description is empty");
+                            return false;
+                        }
+
                         var element_2 = document.createElement("input");
                         element_2.setAttribute("type", "hidden");
                         element_2.setAttribute("name", "description");
@@ -1172,15 +1195,14 @@ define([
                         form.appendChild(element_2);
 
                         if(fn_object.column_admin == 1){
-                            var reg  = /^\w+$/;
-                            if(!reg.test(registry.byId("dialog_admin_add_textbox_"+fn_object.id).get("value"))){
-                                alert("Description contains an invalid character! Please try again.");
+
+                            if(registry.byId("dialog_admin_add_select_"+fn_object.id).get("value") == ""){
+                                // Remove Form
                                 dojo.body().removeChild(form);
+                                alert("Type is empty");
                                 return false;
                             }
-                        }
 
-                        if(fn_object.column_admin == 1){
                             var element_3 = document.createElement("input");
                             element_3.setAttribute("type", "hidden");
                             element_3.setAttribute("name", "type");
@@ -1203,17 +1225,10 @@ define([
                             cache_store.remove("filter");
 
                             if(fn_object.column_admin == 1){
-                                //alert("Columns have changed! Reloading page.");
-                                //location.reload(true);
-                                reload_button.set("disabled", false);
-                                domStyle.set(reload_button.domNode, "border", "1px solid red");
+                                fe["4"].set("disabled", false);
                             }
 
                             dojo.body().removeChild(form);
-
-                            setTimeout(function(){
-                                popup.close(tooltipdialog);
-                            },400);
 
                         }, function(error){
                             console.log("An error occurred: " + error);
@@ -1222,46 +1237,23 @@ define([
                     }
                 });
 
-                ttd["3"]  = new ContentPane({});
-                ttd["4"]  = domConstruct.create('table', {border:"0",style:{width:"100%",whiteSpace:"nowrap"}},ttd["3"].containerNode);
-                ttd["5"]  = domConstruct.create('tbody', {},ttd["4"]);
-
-                if(fn_object.column_admin == 1){
-
-                    ttd["6"]  = domConstruct.create('tr', {},ttd["5"]);
-                    ttd["7"]  = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},ttd["6"]);
-                    domConstruct.create('span', {innerHTML:"Type:"},ttd["7"]);
-                    ttd["9"]  = domConstruct.create('td', {style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},ttd["6"]);
-                    ttd["1"].placeAt(ttd["9"]);
-                }
-
-                ttd["10"]  = domConstruct.create('tr', {},ttd["5"]);
-                ttd["11"]  = domConstruct.create('td', {style:{textAlign:"right",padding:"5px",width:"40%"}},ttd["10"]);
-                domConstruct.create('span', {innerHTML:"Description:"},ttd["11"]);
-                ttd["12"]  = domConstruct.create('td', {style:{textAlign:"left",paddingLeft:"10px",width:"60%"}},ttd["10"]);
-                ttd["0"].placeAt(ttd["12"]);
-
-                ttd["13"] = domConstruct.create('tr', {},ttd["5"]);
-                ttd["14"] = domConstruct.create('td', {colSpan:'2',style:{textAlign:"center",padding:"5px"}},ttd["13"]);
-                ttd["2"].placeAt(ttd["14"]);
-
-                var tooltipdialog = new TooltipDialog({
-                    content: ttd["3"]
+                fe["3"] = new Button({
+                    id: "dialog_admin_clear_button_"+fn_object.id,
+                    label: "Clear",
+                    style: "padding-right:3px",
+                    onClick: function(){
+                        registry.byId("dialog_admin_add_textbox_"+fn_object.id).set("value",null);
+                        if(fn_object.column_admin == 1){
+                            registry.byId("dialog_admin_add_select_"+fn_object.id).set("displayedValue",null);
+                        }
+                    }
                 });
 
-                var dropdown = new DropDownButton({
-                    label: "Add",
-                    dropDown: tooltipdialog
-                });
-
-                var reload_button = new Button({
+                fe["4"] = new Button({
                     label: "Reload Page!",
-                    //style: "display: none",
                     disabled: true,
                     onClick: function(){
                         location.reload(true);
-                        domStyle.set(reload_button.domNode, "display", "none");
-                        domStyle.set(reload_button.domNode, "border", "");
                     }
                 });
 
@@ -1274,11 +1266,18 @@ define([
                 t["2"] = domConstruct.create('table', {border:"0",style:{width:"100%",whiteSpace:"nowrap"}},t["1"].containerNode);
                 t["3"] = domConstruct.create('tbody', {},t["2"]);
                 t["4"] = domConstruct.create('tr', {},t["3"]);
-                t["5"] = domConstruct.create('td', {style:{width:"20px",height:"5px",paddingRight:"2px",paddingLeft:"2px"}},t["4"]);
-                dropdown.placeAt(t["5"]);
+                t["5"] = domConstruct.create('td', {style:{textAlign:"center"}},t["4"]);
 
                 if(fn_object.column_admin == 1){
-                    reload_button.placeAt(t["5"]);
+                    fe["1"].placeAt(t["5"]);
+                }
+
+                fe["0"].placeAt(t["5"]);
+                fe["2"].placeAt(t["5"]);
+                fe["3"].placeAt(t["5"]);
+                if(fn_object.column_admin == 1){
+                    domConstruct.create('span', {style:{padding:"1px",borderLeft:"1px dotted silver"}},t["5"]);
+                    fe["4"].placeAt(t["5"]);
                 }
 
                 t["6"] = new ContentPane({region:"center",splitter:false,style:"padding:0;border:0"}).placeAt(t["0"]);
@@ -1288,9 +1287,7 @@ define([
                 grid.edit.connect(grid.edit, "onApply", function(cell, success) {
                     var check_if_dirty = grid.model.getChanged();
                     if(check_if_dirty.length > 0){
-                            //domStyle.set(reload_button.domNode, "display", "");
-                            reload_button.set("disabled", false);
-                            console.log("saving table");
+                            fe["4"].set("disabled", false);
                         for	(var index = 0; index < check_if_dirty.length; index++) {
                             grid.model.save();
                         } 
@@ -1298,7 +1295,7 @@ define([
                 });
             }
 
-            var tc = new TabContainer({doLayout:true, tabStrip:true, style:"width:435px;height:350px;"});
+            var tc = new TabContainer({doLayout:true, tabStrip:true, style:"width:455px;height:420px;"});
 
             // Tab 1
             var t1 = new ContentPane({title:"Main Columns",style:"padding:5px;"}).placeAt(tc);
@@ -1310,7 +1307,7 @@ define([
             for (var i in res){
                 var type  = res[i].type;
                 if(type == "select"){
-                    var nameC = formatString(res[i].name);
+                    var nameC = res[i].description;
                     var c = new ContentPane({title:nameC}).placeAt(t2);
                     createGrid({id:res[i].id,store:JsonRest({target:main_uri+"/admin_grid/"+res[i].id}),container:c,name:nameC});
                 }
@@ -1363,7 +1360,7 @@ define([
 
             for(var i in res){
 
-                var nameC = formatString(res[i].name);
+                var nameC = res[i].description;
                 var order = res[i].order + 1;
                 var size  = res[i].size + 'px';
 
@@ -1378,7 +1375,10 @@ define([
                         grid_layout.splice(order,0,{ name: nameC, field: "updated_by_name", width: size, style: "text-align:center;", editable: false });
                     }
                     else{ 
-                        grid_layout.splice(order,0,{ name: nameC, field: res[i].name, width: size, style: "text-align:center;", editable: true });
+                        grid_layout.splice(order,0,{ name: nameC, field: res[i].name, width: size, style: "text-align:center;", editable: true,
+                            editor: NumberSpinner,
+                            editorArgs: { props:'constraints: { min:1, places:0 }'}
+                        });
                     }
                 }
                 if(res[i].type == "date"){
@@ -1396,7 +1396,7 @@ define([
                     });
                 }
                 if(res[i].type == "select"){
-                    grid_layout.splice(order,0,addGridSelectSlice({id: res[i].id, name: res[i].name, size: size}));
+                    grid_layout.splice(order,0,addGridSelectSlice({id: res[i].id, name: res[i].name, description: res[i].description, size: size}));
 
                 }
             }
@@ -1407,7 +1407,6 @@ define([
                 var memory_store   = new Memory();
 
                 select_store_cache = new dojoCache(select_store,memory_store);   
-                //console.log(select_store);
             }
 
             // Grid
@@ -1421,9 +1420,7 @@ define([
                 selectRowTriggerOnCell: true,
                 paginationBarMessage: "${2} to ${3} of <span style='font-size:12pt;color:red'><strong>${0}</strong></span> items ${1} items selected",
                 filterServerMode: true,
-                //filterSetupQuery: function(expr){
                 filterSetupFilterQuery: function(expr){
-                    console.log(expr);
                     if(fn_object.query){
                         var s = lang.clone(fn_object.query);
                         if(expr.data[0].data == 'advanced_search'){
@@ -1435,9 +1432,6 @@ define([
                         }
                     }
                 },
-                //barBottom: [
-                //    {pluginClass: "gridx/support/Summary"}
-                //],
                 modules: [
                     "gridx/modules/Filter",
                     "gridx/modules/VirtualVScroller",
@@ -1452,7 +1446,7 @@ define([
             });
 
             service_grid.edit.connect(service_grid.edit, "onApply", function(cell, success) {
-                console.log(cell);
+
                 var check_if_dirty = service_grid.model.getChanged();
                                 
                 if(check_if_dirty.length > 0){
@@ -1496,7 +1490,7 @@ define([
 
         var id    = fn_object.id;
         var name  = fn_object.name;
-        var nameC = formatString(name);
+        var nameC = fn_object.description;
         var size  = fn_object.size;
 
         var select_store   = new JsonRest({target:main_uri+"/filtering_select/"+id+"/"});
@@ -1505,7 +1499,6 @@ define([
 
         when (select_store_cache.query({name:"*"}),
           function (items, request) {
-            //console.log(items);
           }
         );
 

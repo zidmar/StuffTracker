@@ -395,10 +395,12 @@ sub stuff_tracker {
     my @foreign_table_array = ();
     my @search_query_array  = ();
     my %date_column         = (); ## for Filter
+    my @csv_column_array    = ();
     my @csv_title_array     = ();
 
     $sql->{2} = qq(select 
-                    a.description as column,
+                    a.name as column,
+                    a.description as column_description,
                     b.name as column_type
                    from
                     db_column a,
@@ -412,6 +414,7 @@ sub stuff_tracker {
     my $sql_2_result = $sth->{2}->fetchall_arrayref({});
 
     for my $row (@$sql_2_result){
+
         if( ($row->{column_type} eq "varchar") || ($row->{column_type} eq "integer") ){
             push @main_table_array,   "stuff_tracker." . $row->{column};
             push @search_query_array, "stuff_tracker." . $row->{column};
@@ -436,7 +439,8 @@ sub stuff_tracker {
         }
         ## For CSV Export
         if($output){
-            push @csv_title_array, $row->{column};
+            push @csv_column_array, $row->{column};
+            push @csv_title_array, $row->{column_description};
         }
     }
 
@@ -625,16 +629,28 @@ sub stuff_tracker {
 
         my $result_array = [];
 
+        my $user_hash = &_db_authen_fetch_user();
+
         for my $row (@$sql_1_result){
 
             my @result_array_temp = (); 
 
-            for my $column_name (@csv_title_array){
+            for my $column_name (@csv_column_array){
                 if($row->{$column_name}){
-                    $row->{$column_name} =~ s/\"/ /g;
-                    $row->{$column_name} =~ s/\n//g;
-                    $row->{$column_name} =~ s/\r\n//g;
-                    push @result_array_temp, $row->{$column_name};
+                    if($column_name eq "integrated_by"){
+                        $row->{integrated_by} = $user_hash->{ $row->{integrated_by} };
+                        push @result_array_temp, $row->{"integrated_by"};
+                    }
+                    elsif($column_name eq "updated_by"){
+                        $row->{updated_by} = $user_hash->{ $row->{updated_by} };
+                        push @result_array_temp, $row->{"updated_by"};
+                    }
+                    else{
+                        $row->{$column_name} =~ s/\"/ /g;
+                        $row->{$column_name} =~ s/\n//g;
+                        $row->{$column_name} =~ s/\r\n//g;
+                        push @result_array_temp, $row->{$column_name};
+                    }
                 }
             }
 
@@ -643,11 +659,6 @@ sub stuff_tracker {
             $result_row .= qq("\n);
 
             push @$result_array, $result_row;
-        }
-
-        for(@csv_title_array){
-            $_ =~ s/\_/ /g;
-            $_ =~ s/\b(\w)/\U$1/g; # https://stackoverflow.com/a/163826 
         }
 
         my $title = qq(sep=;\n");
@@ -708,10 +719,10 @@ sub stuff_tracker_columns {
 
     $sql->{1} = qq(select 
                     a.db_column_id as id,
-                    a.description as name,
+                    a.name as name,
+                    a.description as description,
                     a.column_size,
                     a.column_order,
-                    a.protected,
                     b.name as type
                    from
                     db_column a,
@@ -726,12 +737,24 @@ sub stuff_tracker_columns {
     my $sql_1_result = $sth->{1}->fetchall_arrayref({});
 
     for my $row (@$sql_1_result){
-        push @$result_array, { id        => $row->{id}, 
-                               name      => $row->{name},
-                               size      => $row->{column_size},
-                               order     => $row->{column_order},
-                               protected => $row->{protected},
-                               type      => $row->{type} };
+
+        my $protected = undef;
+
+        if($row->{name} eq "integrated_by"){
+            $protected = 1;
+        }
+
+        if($row->{name} eq "updated_by"){
+            $protected = 1;
+        }
+
+        push @$result_array, { id          => $row->{id}, 
+                               name        => $row->{name},
+                               description => $row->{description},
+                               size        => $row->{column_size},
+                               order       => $row->{column_order},
+                               protected   => $protected,
+                               type        => $row->{type} };
     }
 
     $sth->{1}->finish;
@@ -753,7 +776,7 @@ sub add_stuff {
     my $sub_output = "Error addding host!";
 
     $sql->{1} = qq(select 
-                    a.description as column,
+                    a.name as column,
                     b.name as column_type
                    from
                     db_column a,
@@ -819,7 +842,7 @@ sub modify_stuff {
     my $column_hash = {};
 
     $sql->{1} = qq(select 
-                    a.description as column,
+                    a.name as column,
                     b.name as column_type
                    from
                     db_column a,
@@ -837,11 +860,6 @@ sub modify_stuff {
         my $column = $row->{column};
         my $type   = $row->{column_type};
         my $value  = $sub_hash->{ $row->{column} } || "_NULL_";
-
-        if($type eq "select"){
-            #$column = $column . "_id";
-            #$value  = $sub_hash->{ $column } || "_NULL_";
-        }
 
         $column_hash->{ $column } = { type  => $type,
                                       value => $value };
@@ -877,7 +895,6 @@ sub modify_stuff {
 
                     ## Verify if value is valid in Foreign Column
                     my $f_column_name_id = $column_name . "_id";
-                    #$sql->{3} = qq(select description from $column_name where $f_column_name_id = ?);
                     $sql->{3} = qq(select $f_column_name_id as fid from $column_name where description = ?);
                     $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
                     $sth->{3}->execute($column_value) or error("Error in sth_3");
@@ -1005,7 +1022,7 @@ sub filtering_select {
         }
         elsif($input eq "column_type"){
 
-            $sql->{1} = qq(select db_column_type_id as id,description from db_column_type);
+            $sql->{1} = qq(select db_column_type_id as id,name from db_column_type);
             $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
             $sth->{1}->execute() or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchall_arrayref({});
@@ -1019,7 +1036,7 @@ sub filtering_select {
             my $sort_by   = undef;
             
             for my $row (@$sql_1_result){
-                $result_hash->{ $row->{id} } = $row->{description};
+                $result_hash->{ $row->{id} } = $row->{name};
             }
             
             ## Sort by key
@@ -1060,13 +1077,13 @@ sub filtering_select {
         }
         else{
 
-            $sql->{1} = qq(select description from db_column where db_column_id = ?);
+            $sql->{1} = qq(select name from db_column where db_column_id = ?);
             $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
             $sth->{1}->execute($input) or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchrow_hashref;
             $sth->{1}->finish;
 
-            my $table = $sql_1_result->{description};
+            my $table = $sql_1_result->{name};
 
             my $column_id     = $table . "_id";
             my $column_status = "status_to_" . $table . "_id";
@@ -1157,7 +1174,7 @@ sub admin_grid {
     if(session->read('session_admin') == 1){
         if($column_id){
 
-            $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
+            $sql->{1} = qq(select name as table_name from db_column where db_column_id = ?);
             $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
             $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchrow_hashref;
@@ -1221,7 +1238,7 @@ sub admin_add {
     if(session->read('session_admin') == 1){
         if($column_id){
 
-            $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
+            $sql->{1} = qq(select name as table_name from db_column where db_column_id = ?);
             $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
             $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchrow_hashref;
@@ -1263,7 +1280,7 @@ sub modify_admin {
     if(session->read('session_admin') == 1){
         if($id){
 
-            $sql->{1} = qq(select description as table_name from db_column where db_column_id = ?);
+            $sql->{1} = qq(select name as table_name from db_column where db_column_id = ?);
             $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
             $sth->{1}->execute($column_id) or error("Error in sth_1 execute");
             my $sql_1_result = $sth->{1}->fetchrow_hashref;
@@ -1271,6 +1288,8 @@ sub modify_admin {
 
             my $table    = $sql_1_result->{table_name};
             my $table_id = $table . "_id";
+
+            ## Description
 
             $sql->{2} = qq(select description from $table where $table_id = ?);
             $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
@@ -1291,6 +1310,8 @@ sub modify_admin {
                 }
                 $sth->{3}->finish;
             }
+
+            ## Status
 
             my $status_column  = "status_to_" . $table . "_id";
 
@@ -1342,10 +1363,10 @@ sub column_grid {
 
         $sql->{1} = qq(select 
                         a.db_column_id as id,
+                        a.name,
                         a.description,
                         a.column_size,
                         a.column_order,
-                        a.protected,
                         a.status_to_db_column_id as status,
                         b.description as type
                        from 
@@ -1371,10 +1392,10 @@ sub column_grid {
             }
 
             push @$result_array, { id          => $row->{id}, 
+                                   name        => $row->{name},
                                    description => $row->{description},
                                    size        => $row->{column_size},
                                    order       => $row->{column_order},
-                                   protected   => $row->{protected},
                                    status      => $status,
                                    type        => $row->{type} };
         }
@@ -1429,204 +1450,202 @@ sub column_admin {
 
             if(!$sql_2_result->{db_column_id}){
 
-                if($sub_hash->{description} =~ /^\w+$/){
+                my $new_column = &_fetch_new_column_name();
 
-                    my $new_column = lc($sub_hash->{description});
+                $sql->{3} = qq(insert into db_column (name,description,db_column_type_to_db_column_id) values (?,?,?));
+                $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
+                $sth->{3}->execute($new_column,$sub_hash->{description},$sub_hash->{type}) or error("Error in sth_3 execute");
+                $sth->{3}->finish;
 
-                    $sql->{3} = qq(insert into db_column (description,db_column_type_to_db_column_id) values (?,?));
-                    $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
-                    $sth->{3}->execute($new_column,$sub_hash->{type}) or error("Error in sth_3 execute");
-                    $sth->{3}->finish;
-
-                    if($sql_1_result->{type} eq "varchar"){
-                        $sql->{4} = qq(alter table stuff_tracker add column $new_column varchar(100) null);
-                        $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
-                        $sth->{4}->execute() or error("Error in sth_4 execute");
-                        $sth->{4}->finish;
-                    }
-                    if($sql_1_result->{type} eq "integer"){
-                        $sql->{4} = qq(alter table stuff_tracker add column $new_column int4 null);
-                        $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
-                        $sth->{4}->execute() or error("Error in sth_4 execute");
-                        $sth->{4}->finish;
-                    }
-                    if($sql_1_result->{type} eq "date"){
-                        $sql->{4} = qq(alter table stuff_tracker add column $new_column timestamp null);
-                        $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
-                        $sth->{4}->execute() or error("Error in sth_4 execute");
-                        $sth->{4}->finish;
-                    }
-
-                    if($sql_1_result->{type} eq "select"){
-
-                        if(config->{"dbi_to_use"} eq "SQLite"){
-
-                            my $table_name        = lc($sub_hash->{description});
-                            my $table_name_id     = $table_name . "_id";
-                            my $table_name_status = "status_to_" . $table_name_id;
-                            my $column_name       = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
-                            my $primary_key       = &_primary_key_to_use();
-
-                            my %statement_hash = ( 
-                                5 => qq(CREATE TABLE $table_name (
-                                            $table_name_id $primary_key, 
-                                            description varchar(100) not null,
-                                            $table_name_status int4 not null DEFAULT 1,
-                                            FOREIGN KEY ($table_name_status) REFERENCES status (status_id))),
-                                6 => qq(INSERT INTO $table_name (description) VALUES ('default')),
-                                7 => qq(ALTER TABLE stuff_tracker ADD COLUMN $column_name int4 null DEFAULT 1)
-                            );
-
-                            for my $key (sort {$a <=> $b} keys %statement_hash){
-                                $sql->{$key} = $statement_hash{$key};
-                                $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
-                                $sth->{$key}->execute() or error("Error in sth_$key execute");
-                                $sth->{$key}->finish;
-                            }
-
-                            my @column_name_array = ();
-                            my @column_array      = ();
-                            my @f_column_array    = ();
-
-                            $sql->{8} = qq(select 
-                                           a.description as column_name,
-                                           b.name as column_type 
-                                          from 
-                                           db_column a,
-                                           db_column_type b
-                                          where 
-                                           b.db_column_type_id = a.db_column_type_to_db_column_id);
-                            $sth->{8} = $dbh->prepare($sql->{8}) or error("Error in sth_8");
-                            $sth->{8}->execute() or error("Error in sth_8 execute");
-                            my $sql_8_result = $sth->{8}->fetchall_arrayref({});
-                            $sth->{8}->finish;
-
-                            for my $row (@$sql_8_result){
-                                
-                                if($row->{column_type} eq "varchar"){
-                                    push @column_array, "$row->{column_name} varchar(100) null";
-                                    push @column_name_array, $row->{column_name};
-                                }
-                                if($row->{column_type} eq "integer"){
-                                    push @column_array, "$row->{column_name} int4 null";
-                                    push @column_name_array, $row->{column_name};
-                                }
-                                if($row->{column_type} eq "date"){
-                                    push @column_array, "$row->{column_name} timestamp null";
-                                    push @column_name_array, $row->{column_name};
-                                }
-                                if($row->{column_type} eq "select"){
-                                    my $column_name = $row->{column_name} . "_to_stuff_tracker_id";
-                                    my $column_id   = $row->{column_name} . "_id";
-                                    push @column_array, "$column_name int4 null";
-                                    push @f_column_array, "FOREIGN KEY ($column_name) references $row->{column_name} ($column_id)";
-                                    push @column_name_array, $column_name;
-                                }
-                            }
-
-                            ## create select string
-
-                            my $column_string = qq(stuff_tracker_id,created,updated);
-
-                            if($column_name_array[0]){
-                                if($column_name_array[1]){
-                                    $column_string .=  ",";
-                                    my $last_one = pop @column_name_array;
-                                    for my $row (@column_name_array){
-                                        $column_string .=  " $row, ";
-                                    }
-                                    $column_string .=  " $last_one ";
-                                }
-                                else{
-                                    $column_string .=  ", $column_name_array[0] ";
-                                }
-                            }
-
-                            $sql->{9} = qq(create temporary table stuff_tracker_b as select $column_string from stuff_tracker);
-                            $sth->{9} = $dbh->prepare($sql->{9}) or error("Error in sth_9");
-                            $sth->{9}->execute() or error("Error in sth_9 execute");
-                            $sth->{9}->finish;
-
-                            $sql->{10} = qq(drop table stuff_tracker);
-                            $sth->{10} = $dbh->prepare($sql->{10}) or error("Error in sth_10");
-                            $sth->{10}->execute() or error("Error in sth_10 execute");
-                            $sth->{10}->finish;
-
-                            ## create table
-
-                            $sql->{main} = qq{create table stuff_tracker(stuff_tracker_id integer primary key, created timestamp not null, updated timestamp null};
-
-                            if($column_array[0]){
-                                if($column_array[1]){
-                                    $sql->{main} .= ",";
-                                    my $last_one = pop @column_array;
-                                    for my $row (@column_array){
-                                        $sql->{main} .= " $row, ";
-                                    }
-                                    $sql->{main} .=  " $last_one ";
-                                }
-                                else{
-                                    $sql->{main} .= ", $column_array[0] ";
-                                }
-                            }
-
-                            if($f_column_array[0]){
-                                if($f_column_array[1]){
-                                    $sql->{main} .= ",";
-                                    my $last_one = pop @f_column_array;
-                                    for my $row (@f_column_array){
-                                        $sql->{main} .= " $row, ";
-                                    }
-                                    $sql->{main} .= " $last_one ";
-                                }
-                                else{
-                                    $sql->{main} .= ", $f_column_array[0] ";
-                                }
-                            }
-
-                            $sql->{main} .=  " ) ";
-
-                            $sth->{main} = $dbh->prepare($sql->{main}) or error("Error in sth_main");
-                            $sth->{main}->execute() or error("Error in sth_main execute");
-                            $sth->{main}->finish;
-
-                            $sql->{11} = qq{insert into stuff_tracker ($column_string) select $column_string from stuff_tracker_b};
-                            $sth->{11} = $dbh->prepare($sql->{11}) or error("Error in sth_11");
-                            $sth->{11}->execute() or error("Error in sth_11 execute");
-                            $sth->{11}->finish;
-                        }
-                        else{
-
-                            my $table_name        = lc($sub_hash->{description});
-                            my $table_name_id     = $table_name . "_id";
-                            my $table_name_status = "status_to_" . $table_name_id;
-
-                            my $column_name       = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
-                            my $constraint_name   = "stuff_tracker_" . lc($sub_hash->{description}) . "_to_stuff_tracker_id_fkey";
-
-                            my $primary_key       = &_primary_key_to_use();
-
-                            my %statement_hash = ( 
-                                5 => qq(CREATE TABLE $table_name (
-                                            $table_name_id $primary_key, 
-                                            description varchar(100) not null,
-                                            $table_name_status int4 not null DEFAULT 1,
-                                            FOREIGN KEY ($table_name_status) REFERENCES status (status_id))),
-                                6 => qq(INSERT INTO $table_name (description) VALUES ('default')),
-                                7 => qq(ALTER TABLE stuff_tracker ADD COLUMN $column_name int4 null DEFAULT 1),
-                                8 => qq(ALTER TABLE stuff_tracker ADD CONSTRAINT $constraint_name FOREIGN KEY ($column_name) REFERENCES $table_name ($table_name_id) MATCH SIMPLE)
-                            );
-
-                            for my $key (sort {$a <=> $b} keys %statement_hash){
-                                $sql->{$key} = $statement_hash{$key};
-                                $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
-                                $sth->{$key}->execute() or error("Error in sth_$key execute");
-                                $sth->{$key}->finish;
-                            }
-                        }
-                    }
-                    $sub_output = "Added column \"$sub_hash->{description}\" successfully!";
+                if($sql_1_result->{type} eq "varchar"){
+                    $sql->{4} = qq(alter table stuff_tracker add column $new_column varchar(100) null);
+                    $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                    $sth->{4}->execute() or error("Error in sth_4 execute");
+                    $sth->{4}->finish;
                 }
+                if($sql_1_result->{type} eq "integer"){
+                    $sql->{4} = qq(alter table stuff_tracker add column $new_column int4 null);
+                    $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                    $sth->{4}->execute() or error("Error in sth_4 execute");
+                    $sth->{4}->finish;
+                }
+                if($sql_1_result->{type} eq "date"){
+                    $sql->{4} = qq(alter table stuff_tracker add column $new_column timestamp null);
+                    $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
+                    $sth->{4}->execute() or error("Error in sth_4 execute");
+                    $sth->{4}->finish;
+                }
+
+                if($sql_1_result->{type} eq "select"){
+
+                    if(config->{"dbi_to_use"} eq "SQLite"){
+
+                        my $table_name        = $new_column;
+                        my $table_name_id     = $table_name . "_id";
+                        my $table_name_status = "status_to_" . $table_name_id;
+                        my $column_name       = $new_column . "_to_stuff_tracker_id";
+                        my $primary_key       = &_primary_key_to_use();
+
+                        my %statement_hash = ( 
+                            5 => qq(CREATE TABLE $table_name (
+                                        $table_name_id $primary_key, 
+                                        description varchar(100) not null,
+                                        $table_name_status int4 not null DEFAULT 1,
+                                        FOREIGN KEY ($table_name_status) REFERENCES status (status_id))),
+                            6 => qq(INSERT INTO $table_name (description) VALUES ('default')),
+                            7 => qq(ALTER TABLE stuff_tracker ADD COLUMN $column_name int4 null DEFAULT 1)
+                        );
+
+                        for my $key (sort {$a <=> $b} keys %statement_hash){
+                            $sql->{$key} = $statement_hash{$key};
+                            $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+                            $sth->{$key}->execute() or error("Error in sth_$key execute");
+                            $sth->{$key}->finish;
+                        }
+
+                        my @column_name_array = ();
+                        my @column_array      = ();
+                        my @f_column_array    = ();
+
+                        $sql->{8} = qq(select 
+                                       a.name as column_name,
+                                       a.description as column_description,
+                                       b.name as column_type 
+                                      from 
+                                       db_column a,
+                                       db_column_type b
+                                      where 
+                                       b.db_column_type_id = a.db_column_type_to_db_column_id);
+                        $sth->{8} = $dbh->prepare($sql->{8}) or error("Error in sth_8");
+                        $sth->{8}->execute() or error("Error in sth_8 execute");
+                        my $sql_8_result = $sth->{8}->fetchall_arrayref({});
+                        $sth->{8}->finish;
+
+                        for my $row (@$sql_8_result){
+                            
+                            if($row->{column_type} eq "varchar"){
+                                push @column_array, "$row->{column_name} varchar(100) null";
+                                push @column_name_array, $row->{column_name};
+                            }
+                            if($row->{column_type} eq "integer"){
+                                push @column_array, "$row->{column_name} int4 null";
+                                push @column_name_array, $row->{column_name};
+                            }
+                            if($row->{column_type} eq "date"){
+                                push @column_array, "$row->{column_name} timestamp null";
+                                push @column_name_array, $row->{column_name};
+                            }
+                            if($row->{column_type} eq "select"){
+                                my $column_name = $row->{column_name} . "_to_stuff_tracker_id";
+                                my $column_id   = $row->{column_name} . "_id";
+                                push @column_array, "$column_name int4 null";
+                                push @f_column_array, "FOREIGN KEY ($column_name) references $row->{column_name} ($column_id)";
+                                push @column_name_array, $column_name;
+                            }
+                        }
+
+                        ## create select string
+
+                        my $column_string = qq(stuff_tracker_id,created,updated);
+
+                        if($column_name_array[0]){
+                            if($column_name_array[1]){
+                                $column_string .=  ",";
+                                my $last_one = pop @column_name_array;
+                                for my $row (@column_name_array){
+                                    $column_string .=  " $row, ";
+                                }
+                                $column_string .=  " $last_one ";
+                            }
+                            else{
+                                $column_string .=  ", $column_name_array[0] ";
+                            }
+                        }
+
+                        $sql->{9} = qq(create temporary table stuff_tracker_b as select $column_string from stuff_tracker);
+                        $sth->{9} = $dbh->prepare($sql->{9}) or error("Error in sth_9");
+                        $sth->{9}->execute() or error("Error in sth_9 execute");
+                        $sth->{9}->finish;
+
+                        $sql->{10} = qq(drop table stuff_tracker);
+                        $sth->{10} = $dbh->prepare($sql->{10}) or error("Error in sth_10");
+                        $sth->{10}->execute() or error("Error in sth_10 execute");
+                        $sth->{10}->finish;
+
+                        ## create table
+
+                        $sql->{main} = qq{create table stuff_tracker(stuff_tracker_id integer primary key, created timestamp not null, updated timestamp null};
+
+                        if($column_array[0]){
+                            if($column_array[1]){
+                                $sql->{main} .= ",";
+                                my $last_one = pop @column_array;
+                                for my $row (@column_array){
+                                    $sql->{main} .= " $row, ";
+                                }
+                                $sql->{main} .=  " $last_one ";
+                            }
+                            else{
+                                $sql->{main} .= ", $column_array[0] ";
+                            }
+                        }
+
+                        if($f_column_array[0]){
+                            if($f_column_array[1]){
+                                $sql->{main} .= ",";
+                                my $last_one = pop @f_column_array;
+                                for my $row (@f_column_array){
+                                    $sql->{main} .= " $row, ";
+                                }
+                                $sql->{main} .= " $last_one ";
+                            }
+                            else{
+                                $sql->{main} .= ", $f_column_array[0] ";
+                            }
+                        }
+
+                        $sql->{main} .=  " ) ";
+
+                        $sth->{main} = $dbh->prepare($sql->{main}) or error("Error in sth_main");
+                        $sth->{main}->execute() or error("Error in sth_main execute");
+                        $sth->{main}->finish;
+
+                        $sql->{11} = qq{insert into stuff_tracker ($column_string) select $column_string from stuff_tracker_b};
+                        $sth->{11} = $dbh->prepare($sql->{11}) or error("Error in sth_11");
+                        $sth->{11}->execute() or error("Error in sth_11 execute");
+                        $sth->{11}->finish;
+                    }
+                    else{
+
+                        my $table_name        = $new_column;
+                        my $table_name_id     = $table_name . "_id";
+                        my $table_name_status = "status_to_" . $table_name_id;
+
+                        my $column_name       = $new_column . "_to_stuff_tracker_id";
+                        my $constraint_name   = "stuff_tracker_" . $new_column . "_to_stuff_tracker_id_fkey";
+
+                        my $primary_key       = &_primary_key_to_use();
+
+                        my %statement_hash = ( 
+                            5 => qq(CREATE TABLE $table_name (
+                                        $table_name_id $primary_key, 
+                                        description varchar(100) not null,
+                                        $table_name_status int4 not null DEFAULT 1,
+                                        FOREIGN KEY ($table_name_status) REFERENCES status (status_id))),
+                            6 => qq(INSERT INTO $table_name (description) VALUES ('default')),
+                            7 => qq(ALTER TABLE stuff_tracker ADD COLUMN $column_name int4 null DEFAULT 1),
+                            8 => qq(ALTER TABLE stuff_tracker ADD CONSTRAINT $constraint_name FOREIGN KEY ($column_name) REFERENCES $table_name ($table_name_id) MATCH SIMPLE)
+                        );
+
+                        for my $key (sort {$a <=> $b} keys %statement_hash){
+                            $sql->{$key} = $statement_hash{$key};
+                            $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
+                            $sth->{$key}->execute() or error("Error in sth_$key execute");
+                            $sth->{$key}->finish;
+                        }
+                    }
+                }
+                $sub_output = "Added column \"$sub_hash->{description}\" successfully!";
             }
         }
 
@@ -1654,8 +1673,6 @@ sub column_admin {
             $sth->{1}->finish;
 
             if($sql_1_result->{description}){
-
-                my $new_column = lc($sub_hash->{description});
 
                 ## Order
                 if($sql_1_result->{column_order} ne $sub_hash->{order}){
@@ -1689,276 +1706,15 @@ sub column_admin {
                 }
 
                 ## Name
-                if( ($sql_1_result->{description} ne "integrated_by") && ($sql_1_result->{description} ne "updated_by") ){
-                    if($sql_1_result->{description} ne $new_column){
+                if($sql_1_result->{description} ne $sub_hash->{description}){
 
-                        $sql->{2} = qq(update db_column set description = ? where db_column_id = ?);
-                        $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
-                        $sth->{2}->execute($new_column,$sub_hash->{id}) or error("Error in sth_2 execute");
-                        $sth->{2}->finish;
+                    $sql->{2} = qq(update db_column set description = ? where db_column_id = ?);
+                    $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
+                    $sth->{2}->execute($sub_hash->{description},$sub_hash->{id}) or error("Error in sth_2 execute");
+                    $sth->{2}->finish;
 
-                        if($sql_1_result->{type} ne "select"){
-
-                            if(config->{"dbi_to_use"} eq "SQLite"){
-                                $dbh->do("BEGIN") or error("Error in SQLite RENAME COLUMN 1");
-                                $dbh->do("PRAGMA writable_schema=1") or error("Error in SQLite RENAME COLUMN 2");
-                                my $update_sql = "UPDATE sqlite_master SET SQL=REPLACE(SQL,'" . $sql_1_result->{description} . "','" . $new_column . "') WHERE name='stuff_tracker'";
-                                $dbh->do($update_sql) or error("Error in SQLite RENAME COLUMN 3");
-                                $dbh->do("PRAGMA writable_schema=0") or error("Error in SQLite RENAME COLUMN 4");
-                                $dbh->do("COMMIT") or error("Error in SQLite RENAME COLUMN 5");
-                            }
-                            else{
-                                $sql->{3} = qq(ALTER TABLE stuff_tracker RENAME COLUMN $sql_1_result->{description} TO $new_column);
-                                $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
-                                $sth->{3}->execute() or error("Error in sth_3 execute");
-                                $sth->{3}->finish;
-                            }
-                        }
-                        else{
-
-                            if(config->{"dbi_to_use"} eq "SQLite"){
-
-                                my @column_name_array     = ();
-                                my @column_name_array_new = ();
-                                my @column_array          = ();
-                                my @f_column_array        = ();
-
-                                $sql->{4} = qq(select 
-                                               a.description as column_name,
-                                               b.name as column_type 
-                                              from 
-                                               db_column a,
-                                               db_column_type b
-                                              where 
-                                               b.db_column_type_id = a.db_column_type_to_db_column_id);
-                                $sth->{4} = $dbh->prepare($sql->{4}) or error("Error in sth_4");
-                                $sth->{4}->execute() or error("Error in sth_4 execute");
-                                my $sql_4_result = $sth->{4}->fetchall_arrayref({});
-                                $sth->{4}->finish;
-
-                                for my $row (@$sql_4_result){
-                                    
-                                    if($row->{column_type} eq "varchar"){
-                                        push @column_array, "$row->{column_name} varchar(100) null";
-                                        push @column_name_array, $row->{column_name};
-                                        push @column_name_array_new, $row->{column_name};
-                                    }
-                                    if($row->{column_type} eq "integer"){
-                                        push @column_array, "$row->{column_name} int4 null";
-                                        push @column_name_array, $row->{column_name};
-                                        push @column_name_array_new, $row->{column_name};
-                                    }
-                                    if($row->{column_type} eq "date"){
-                                        push @column_array, "$row->{column_name} timestamp null";
-                                        push @column_name_array, $row->{column_name};
-                                        push @column_name_array_new, $row->{column_name};
-                                    }
-                                    if($row->{column_type} eq "select"){
-                                        if($row->{column_name} ne $new_column){
-                                            my $column_name = $row->{column_name} . "_to_stuff_tracker_id";
-                                            my $column_id   = $row->{column_name} . "_id";
-                                            push @column_array, "$column_name int4 null";
-                                            push @f_column_array, "FOREIGN KEY ($column_name) references $row->{column_name} ($column_id)";
-                                            push @column_name_array, $column_name;
-                                            push @column_name_array_new, $column_name;
-                                        }
-                                    }
-                                }
-
-                                ## Add old column name for initial select
-                                push @column_name_array, $sql_1_result->{description} . "_to_stuff_tracker_id";
-
-                                my $column_string = qq(stuff_tracker_id,created,updated);
-
-                                if($column_name_array[0]){
-                                    if($column_name_array[1]){
-                                        $column_string .=  ",";
-                                        my $last_one = pop @column_name_array;
-                                        for my $row (@column_name_array){
-                                            $column_string .=  " $row, ";
-                                        }
-                                        $column_string .=  " $last_one ";
-                                    }
-                                    else{
-                                        $column_string .=  ", $column_name_array[0] ";
-                                    }
-                                }
-
-                                $dbh->do("create temporary table stuff_tracker_b as select $column_string from stuff_tracker") or error("Error in SQLite RENAME COLUMN 1");
-                                $dbh->do("drop table stuff_tracker") or error("Error in SQLite RENAME COLUMN 2");
-
-                                ## create foreign table
-
-                                my $old_table_name        = $sql_1_result->{description};
-                                my $old_table_name_temp   = $sql_1_result->{description} . "_b";
-                                my $old_table_name_id     = $old_table_name . "_id";
-                                my $old_table_name_status = "status_to_" . $old_table_name_id;
-
-                                my $new_table_name        = lc($sub_hash->{description});
-                                my $new_table_name_id     = $new_table_name . "_id";
-                                my $new_table_name_status = "status_to_" . $new_table_name_id;
-                                my $primary_key           = &_primary_key_to_use();
-
-                                $sql->{5} = qq(create temporary table $old_table_name_temp as select $old_table_name_id,description,$old_table_name_status from $old_table_name);
-
-                                $dbh->do($sql->{5}) or error("Error in SQLite RENAME COLUMN 3");
-                                $dbh->do("drop table $old_table_name") or error("Error in SQLite RENAME COLUMN 4");
-
-                                ($sql->{6} = qq{CREATE TABLE $new_table_name (
-                                               $new_table_name_id $primary_key, 
-                                               description varchar(100) not null,
-                                               $new_table_name_status int4 not null DEFAULT 1,
-                                               FOREIGN KEY ($new_table_name_status) REFERENCES status (status_id)\n)}) =~ s/^ {35}//mg;
-
-                                $dbh->do($sql->{6}) or error("Error in SQLite RENAME COLUMN 5");
-
-                                $dbh->do("insert into $new_table_name ($new_table_name_id,description,$new_table_name_status) select $old_table_name_id,description,$old_table_name_status from $old_table_name_temp") or error("Error in SQLite RENAME COLUMN 6");
-
-                                ## create main table
-
-                                ($sql->{main} = qq{create table stuff_tracker(
-                                                   stuff_tracker_id integer primary key,
-                                                   created timestamp not null,
-                                                   updated timestamp null}) =~ s/^ {39}//mg;
-
-                                ## Add new column to arrays
-                                push @column_array, $new_column . "_to_stuff_tracker_id int4 null";
-                                push @f_column_array, "FOREIGN KEY (" . $new_column . "_to_stuff_tracker_id) references $new_column (" . $new_column . "_id)";
-
-                                if($column_array[0]){
-                                    if($column_array[1]){
-                                        $sql->{main} .= ",\n";
-                                        my $last_one = pop @column_array;
-                                        for my $row (@column_array){
-                                            $sql->{main} .= "    $row,\n";
-                                        }
-                                        $sql->{main} .=  "    $last_one";
-                                    }
-                                    else{
-                                        $sql->{main} .= ",\n    $column_array[0]";
-                                    }
-                                }
-
-                                if($f_column_array[0]){
-                                    if($f_column_array[1]){
-                                        $sql->{main} .= ",\n";
-                                        my $last_one = pop @f_column_array;
-                                        for my $row (@f_column_array){
-                                            $sql->{main} .= "    $row,\n";
-                                        }
-                                        $sql->{main} .= "    $last_one";
-                                    }
-                                    else{
-                                        $sql->{main} .= ",\n    $f_column_array[0]";
-                                    }
-                                }
-
-                                $sql->{main} .=  ")\n";
-
-                                $dbh->do($sql->{main}) or error("Error in sth_main execute");
-                               
-                                ## Add new column name for last select
-                                push @column_name_array_new, $new_column . "_to_stuff_tracker_id";
-                                my $column_string_new = qq(stuff_tracker_id,created,updated);
-
-                                if($column_name_array_new[0]){
-                                    if($column_name_array_new[1]){
-                                        $column_string_new .=  ",";
-                                        my $last_one = pop @column_name_array_new;
-                                        for my $row (@column_name_array_new){
-                                            $column_string_new .=  " $row, ";
-                                        }
-                                        $column_string_new .=  " $last_one ";
-                                    }
-                                    else{
-                                        $column_string_new .=  ", $column_name_array_new[0] ";
-                                    }
-                                }
-
-                                $sql->{main_insert} = qq(insert into stuff_tracker ($column_string_new) select $column_string from stuff_tracker_b);
-                                $dbh->do($sql->{main_insert}) or error("Error in SQLite RENAME COLUMN 7");
-                            }
-                            else{
-
-                                my $old_table_name        = $sql_1_result->{description};
-                                my $old_table_name_id     = $old_table_name . "_id";
-                                my $old_table_name_status = "status_to_" . $old_table_name_id;
-
-                                my $old_column_name     = $sql_1_result->{description} . "_to_stuff_tracker_id";
-                                my $old_constraint_name = "stuf_tracker_" . $sql_1_result->{description} . "_to_stuff_tracker_id_fkey";
-
-                                my $new_table_name        = lc($sub_hash->{description});
-                                my $new_table_name_id     = $new_table_name . "_id";
-                                my $new_table_name_status = "status_to_" . $new_table_name_id;
-
-                                my $new_column_name     = lc($sub_hash->{description}) . "_to_stuff_tracker_id";
-                                my $new_constraint_name = "stuf_tracker_" . lc($sub_hash->{description}) . "_to_stuff_tracker_id_fkey";
-
-                                my %statement_hash = ( 
-                                    4 => qq(DROP CONSTRAINT $old_constraint_name),
-                                    5 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_status TO $new_table_name_status),
-                                    6 => qq(ALTER TABLE $old_table_name RENAME COLUMN $old_table_name_id TO $new_table_name_id),
-                                    7 => qq(ALTER TABLE $old_table_name RENAME TO $new_table_name),
-                                    8 => qq(ALTER TABLE stuff_tracker RENAME COLUMN $old_column_name TO $new_column_name),
-                                    9 => qq(ALTER TABLE stuff_tracker ADD CONSTRAINT $new_constraint_name FOREIGN KEY ($new_column_name) REFERENCES $new_table_name ($new_table_name_id) MATCH SIMPLE)
-                                ); 
-
-                                for my $key (sort {$a <=> $b} keys %statement_hash){
-                                    $sql->{$key} = $statement_hash{$key};
-                                    $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
-                                    $sth->{$key}->execute() or error("Error in sth_$key execute");
-                                    $sth->{$key}->finish;
-                                }
-                            }
-                        }
-                        $sub_output = "Edited column from \"$sql_1_result->{description}\" to \"$sub_hash->{description}\" successfully!";
-                    }
+                    $sub_output = "Edited column from \"$sql_1_result->{description}\" to \"$sub_hash->{description}\" successfully!";
                 }
-            }
-        }
-
-        if($sub_hash->{action} eq "delete"){
-
-            $sql->{1} = qq(select description,db_column_type_to_db_column_id as type from db_column where db_column_id = ?);
-            $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
-            $sth->{1}->execute($sub_hash->{id}) or error("Error in sth_1 execute");
-            my $sql_1_result = $sth->{1}->fetchrow_hashref;
-            $sth->{1}->finish;
-
-            if($sql_1_result->{description}){
-
-                $sql->{2} = qq(delete from db_column where db_column_id = ?);
-                $sth->{2} = $dbh->prepare($sql->{2}) or error("Error in sth_2");
-                $sth->{2}->execute($sub_hash->{id}) or error("Error in sth_2 execute");
-                $sth->{2}->finish;
-
-                if($sql_1_result->{type} != 4){
-                    $sql->{3} = qq(ALTER TABLE stuff_tracker DROP COLUMN $sql_1_result->{description});
-                    $sth->{3} = $dbh->prepare($sql->{3}) or error("Error in sth_3");
-                    $sth->{3}->execute() or error("Error in sth_3 execute");
-                    $sth->{3}->finish;
-                }
-
-                if($sql_1_result->{type} == 4){
-
-                    my $table_name      = $sql_1_result->{description};
-                    my $column_name     = $sql_1_result->{description} . "_to_stuff_tracker_id";
-                    my $constraint_name = "stuf_tracker_" . $sql_1_result->{description} . "_to_stuff_tracker_id_fkey";
-
-                    my %statement_hash = (
-                        4 => qq(DROP CONSTRAINT $constraint_name),
-                        5 => qq(ALTER TABLE stuff_tracker DROP COLUMN $column_name),
-                        6 => qq(DROP TABLE $table_name)
-                    ); 
-
-                    for my $key (sort {$a <=> $b} keys %statement_hash){
-                        $sql->{$key} = $statement_hash{$key};
-                        $sth->{$key} = $dbh->prepare($sql->{$key}) or error("Error in sth_$key");
-                        $sth->{$key}->execute() or error("Error in sth_$key execute");
-                        $sth->{$key}->finish;
-                    }
-                }
-                $sub_output = "Deleted column \"$sql_1_result->{description}\" successfully!";
             }
         }
     }
@@ -2004,6 +1760,36 @@ sub _primary_key_to_use {
         $result = 'int auto_increment primary key';
     }
     return $result;
+}
+
+sub _fetch_new_column_name{
+
+    my ($sub_hash) = @_;
+    
+    my $dbh = &_db_handle($db_hash);
+    my $sql = {};
+    my $sth = {};
+
+    my %order_hash = ();
+
+    $sql->{1} = qq(select name from db_column);
+    $sth->{1} = $dbh->prepare($sql->{1}) or error("Error in sth_1");
+    $sth->{1}->execute() or error("Error in sth_1 execute");
+    my $sql_1_result = $sth->{1}->fetchall_arrayref({});
+    $sth->{1}->finish;
+    $dbh->disconnect;
+
+    for my $row (@$sql_1_result){
+        if($row->{name} =~ /\w+\_(\d+)/){
+            my $order = $1;
+            $order_hash{$order} = $order;
+        }
+    }
+
+    my $last = (sort {$a<=>$b} keys %order_hash)[-1];
+    $last = $last + 1;
+
+     return "column_" . $last;
 }
 
 sub _generate_password{

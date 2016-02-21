@@ -1,16 +1,19 @@
-# StuffTracker
-
-**Stuff Tracker** is a project that helps small groups to keep track of "stuff" in a central location, instead of using spreadsheets.
-
-
 ---
 
 ##### Due to a recent changes, **StuffTracker** now depends on [UserManager](https://github.com/zidmar/UserManager). Please install and configure [UserManager](https://github.com/zidmar/UserManager) before using **StuffTracker**.
 
 ---
 
+# StuffTracker
 
-### Installation instructions for Debian:
+**Stuff Tracker** is a project that helps small groups to keep track of "stuff" in a central location, instead of using spreadsheets.
+
+* [Installation instructions for Debian](#installation)
+* [Production web server installation](#production)
+* [Using the import script](#import)
+
+<a name="installation"/>
+## Installation instructions for Debian
 
 1.) Install necessary packages as the root user
 
@@ -57,7 +60,8 @@ plackup -p 5000 bin/app.psgi
 
 8.) After verifying the web app loads correctly, stop the test web server with **Ctrl-C**
 
-##### Install the production web server:
+<a name="production"/>
+## Production web server installation
 
 1.) As root user, install the following packages
 
@@ -102,3 +106,55 @@ ln -s /home/starman/StuffTracker/scripts/debian/startup.pl /etc/rc6.d/K20StuffTr
 
 6.) Access the website, using the production server, on http://localhost/StuffTracker
 
+<a name="import"/>
+## Using the import script
+
+1.) As root user, install the following package
+
+```sh
+apt-get install libtext-csv-perl
+```
+
+2.) The script currently has limitations and data normalization/standarization should be done to the file before using script
+
+* Only supports the CSV format.
+* The first line of the file should hold the column names and each name should match an already defined column in StuffTracker.
+* The data fields should match the column type
+  * integer (examples: 200 1,345)
+  * date (examples: 1-Feb-2016)
+  * select (field data should reflect already defined Pulldown entries)
+
+3.) Sample Columns and Data
+
+* Pre-defined Select Column in StuffTracker
+
+| Sample Select Column |
+| -------------------- |
+| Select Data 1        |
+| Select Data 2        |
+| Select Data 3        |
+
+* Sample Data in spreadsheet
+
+| Sample Text Column | Sample Date Column | Sample Select Column |
+| ------------------ | :----------------: | -------------------- |
+| Text Data - One    | 1-Feb-2016         | Select Data 1        |
+| Text Data - Two    | 1-May-2016         | Select Data 2        |
+| Text Data - Three  | 1-Jul-2016         | Select Data 3        |
+
+* Converted spreadsheet to CSV
+
+```sh
+Sample Text Column,Sample Date Column,Sample Select Column
+Text Data - One,1-Feb-2016,Select Data 1
+Text Data - Two,1-May-2016,Select Data 2
+Text Data - Three,1-Jul-2016,Select Data 3
+```
+
+4.) Run script with CSV file as argument
+
+```sh
+cd /home/starman/StuffTracker/scripts
+
+perl csv_import.pl /path/to/file.csv
+```
